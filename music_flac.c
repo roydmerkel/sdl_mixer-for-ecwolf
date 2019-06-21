@@ -514,22 +514,18 @@ static int FLAC_Seek(void *context, double position)
 {
     FLAC_Music *music = (FLAC_Music *)context;
     double seek_sample = music->sample_rate * position;
-
-    if (!flac.FLAC__stream_decoder_seek_absolute(music->flac_decoder, (FLAC__uint64)seek_sample)) {
-        if (flac.FLAC__stream_decoder_get_state(music->flac_decoder) == FLAC__STREAM_DECODER_SEEK_ERROR) {
-            flac.FLAC__stream_decoder_flush(music->flac_decoder);
-        }
-
-        SDL_SetError("Seeking of FLAC stream failed: libFLAC seek failed.");
-        return -1;
-    }
-    return 0;
+    return FLAC_SeekPCM(context, (Uint64)seek_sample);
 }
 
 /* Jump (seek) to a given position (position is in samples) */
 static int FLAC_SeekPCM(void *context, Uint64 position)
 {
     FLAC_Music *music = (FLAC_Music *)context;
+
+    // On Seek flac will decode one frame automatically.  Since we might want
+    // to play and then seek to start at an offset we need to clear out any data
+    // otherwise we'll always hear the first frame of the file.
+    SDL_AudioStreamClear(music->stream);
 
     if (!flac.FLAC__stream_decoder_seek_absolute(music->flac_decoder, position)) {
         if (flac.FLAC__stream_decoder_get_state(music->flac_decoder) == FLAC__STREAM_DECODER_SEEK_ERROR) {
