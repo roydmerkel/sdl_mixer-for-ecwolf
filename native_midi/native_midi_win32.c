@@ -166,6 +166,7 @@ static void MIDItoStream(NativeMidiSong *song, MIDIEvent *evntlist)
 void CALLBACK MidiProc( HMIDIIN hMidi, UINT uMsg, DWORD_PTR dwInstance,
                         DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
+    SDL_LockAudio();
     switch( uMsg )
     {
     case MOM_DONE:
@@ -187,6 +188,7 @@ void CALLBACK MidiProc( HMIDIIN hMidi, UINT uMsg, DWORD_PTR dwInstance,
     default:
       break;
     }
+    SDL_UnlockAudio();
 }
 
 int native_midi_detect(void)

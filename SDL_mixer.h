@@ -167,7 +167,11 @@ extern DECLSPEC Mix_Music * SDLCALL Mix_LoadMUS(const char *file);
 
 /* Load a music file from an SDL_RWop object (Ogg and MikMod specific currently)
    Matt Campbell (matt@campbellhome.dhs.org) April 2000 */
+#ifdef __cplusplus
+extern DECLSPEC Mix_Music * SDLCALL Mix_LoadMUS_RW(SDL_RWops *src, int freesrc=0);
+#else
 extern DECLSPEC Mix_Music * SDLCALL Mix_LoadMUS_RW(SDL_RWops *src, int freesrc);
+#endif
 
 /* Load a music file from an SDL_RWop object assuming a specific format */
 extern DECLSPEC Mix_Music * SDLCALL Mix_LoadMUSType_RW(SDL_RWops *src, Mix_MusicType type, int freesrc);
@@ -645,6 +649,8 @@ extern DECLSPEC void SDLCALL Mix_CloseAudio(void);
 }
 #endif
 #include "close_code.h"
+
+#define ECWOLF_MIXER 1
 
 #endif /* SDL_MIXER_H_ */
 
