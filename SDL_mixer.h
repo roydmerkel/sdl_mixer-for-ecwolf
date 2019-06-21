@@ -613,6 +613,9 @@ extern DECLSPEC int SDLCALL Mix_PausedMusic(void);
 */
 extern DECLSPEC int SDLCALL Mix_SetMusicPosition(double position);
 
+extern DECLSPEC int SDLCALL Mix_SetMusicPCMPosition(Uint64 position);
+extern DECLSPEC Uint64 SDLCALL Mix_GetMusicPCMPosition(void);
+
 /* Check the status of a specific channel.
    If the specified channel is -1, check all channels.
 */

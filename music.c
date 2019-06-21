@@ -796,6 +796,59 @@ int Mix_SetMusicPosition(double position)
     return(retval);
 }
 
+int music_internal_pcm_position(Uint64 position)
+{
+    if (music_playing->interface->SeekPCM) {
+        return music_playing->interface->SeekPCM(music_playing->context, position);
+    }
+    return -1;
+}
+int Mix_SetMusicPCMPosition(Uint64 position)
+{
+    int retval;
+
+    Mix_LockAudio();
+    if (music_playing) {
+        retval = music_internal_pcm_position(position);
+        if (retval < 0) {
+            Mix_SetError("Position not implemented for music type");
+        }
+    } else {
+        Mix_SetError("Music isn't playing");
+        retval = -1;
+    }
+    Mix_UnlockAudio();
+
+    return(retval);
+}
+
+/* Tell the playing music position */
+Uint64 music_internal_get_pcm_position(void)
+{
+    if (music_playing->interface->TellPCM) {
+        return music_playing->interface->TellPCM(music_playing->context);
+    }
+    return SDL_MAX_UINT64;
+}
+Uint64 Mix_GetMusicPCMPosition(void)
+{
+    Uint64 retval;
+
+    Mix_LockAudio();
+    if (music_playing) {
+        retval = music_internal_get_pcm_position();
+        if (retval == SDL_MAX_UINT64) {
+            Mix_SetError("Position not implemented for music type");
+        }
+    } else {
+        Mix_SetError("Music isn't playing");
+        retval = 0;
+    }
+    Mix_UnlockAudio();
+
+    return(retval);
+}
+
 /* Set the music's initial volume */
 static void music_internal_initialize_volume(void)
 {

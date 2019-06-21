@@ -207,6 +207,8 @@ Mix_MusicInterface Mix_MusicInterface_TIMIDITY =
     NULL,   /* IsPlaying */
     TIMIDITY_GetAudio,
     TIMIDITY_Seek,
+    NULL,   /* SeekPCM */
+    NULL,   /* TellPCM */
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */

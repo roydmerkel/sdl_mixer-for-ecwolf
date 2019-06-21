@@ -61,6 +61,7 @@ typedef struct {
                         FLAC__uint64 sample);
     FLAC__StreamDecoderState (*FLAC__stream_decoder_get_state)(
                         const FLAC__StreamDecoder *decoder);
+
 } flac_loader;
 
 static flac_loader flac = {
@@ -144,10 +145,13 @@ typedef struct {
     SDL_RWops *src;
     int freesrc;
     SDL_AudioStream *stream;
+    Uint64 sample_number;
 } FLAC_Music;
 
 
 static int FLAC_Seek(void *context, double position);
+static int FLAC_SeekPCM(void *context, Uint64 position);
+static Uint64 FLAC_TellPCM(void *context);
 
 static FLAC__StreamDecoderReadStatus flac_read_music_cb(
                                     const FLAC__StreamDecoder *decoder,
@@ -270,6 +274,10 @@ static FLAC__StreamDecoderWriteStatus flac_write_music_cb(
     default:
         SDL_SetError("FLAC decoder doesn't support %d bits_per_sample", music->bits_per_sample);
         return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+    }
+
+    if (frame->header.number_type == FLAC__FRAME_NUMBER_TYPE_SAMPLE_NUMBER) {
+        music->sample_number = frame->header.number.sample_number;
     }
 
     if (music->channels == 3) {
@@ -518,6 +526,29 @@ static int FLAC_Seek(void *context, double position)
     return 0;
 }
 
+/* Jump (seek) to a given position (position is in samples) */
+static int FLAC_SeekPCM(void *context, Uint64 position)
+{
+    FLAC_Music *music = (FLAC_Music *)context;
+
+    if (!flac.FLAC__stream_decoder_seek_absolute(music->flac_decoder, position)) {
+        if (flac.FLAC__stream_decoder_get_state(music->flac_decoder) == FLAC__STREAM_DECODER_SEEK_ERROR) {
+            flac.FLAC__stream_decoder_flush(music->flac_decoder);
+        }
+
+        SDL_SetError("Seeking of FLAC stream failed: libFLAC seek failed.");
+        return -1;
+    }
+    return 0;
+}
+
+/* Tell the position (position is in samples) */
+static Uint64 FLAC_TellPCM(void *context)
+{
+    FLAC_Music *music = (FLAC_Music *)context;
+    return music->sample_number;
+}
+
 /* Close the given FLAC_Music object */
 static void FLAC_Delete(void *context)
 {
@@ -554,6 +585,8 @@ Mix_MusicInterface Mix_MusicInterface_FLAC =
     NULL,   /* IsPlaying */
     FLAC_GetAudio,
     FLAC_Seek,
+    FLAC_SeekPCM,
+    FLAC_TellPCM,
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */

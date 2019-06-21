@@ -418,6 +418,8 @@ Mix_MusicInterface Mix_MusicInterface_MPG123 =
     NULL,   /* IsPlaying */
     MPG123_GetAudio,
     MPG123_Seek,
+    NULL,   /* SeekPCM */
+    NULL,   /* TellPCM */
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */

@@ -42,6 +42,7 @@ typedef struct {
     int (*op_seekable)(const OggOpusFile *);
     int (*op_read)(OggOpusFile *, opus_int16 *,int,int *);
     int (*op_pcm_seek)(OggOpusFile *,ogg_int64_t);
+    opus_int64 (*op_pcm_tell)(const OggOpusFile *);
 } opus_loader;
 
 static opus_loader opus = {
@@ -79,6 +80,7 @@ static int OPUS_Load(void)
         FUNCTION_LOADER(op_seekable, int (*)(const OggOpusFile *))
         FUNCTION_LOADER(op_read, int (*)(OggOpusFile *, opus_int16 *,int,int *))
         FUNCTION_LOADER(op_pcm_seek, int (*)(OggOpusFile *,ogg_int64_t))
+        FUNCTION_LOADER(op_pcm_tell, opus_int64 (*)(OggOpusFile *))
     }
     ++opus.loaded;
 
@@ -155,6 +157,7 @@ static opus_int64 sdl_tell_func(void *datasource)
 }
 
 static int OPUS_Seek(void*, double);
+static int OPUS_SeekPCM(void*, Uint64);
 static void OPUS_Delete(void*);
 
 static int OPUS_UpdateSection(OPUS_music *music)
@@ -326,6 +329,29 @@ static int OPUS_Seek(void *context, double time)
     return 0;
 }
 
+/* Jump (seek) to a given position (time is in samples) */
+static int OPUS_SeekPCM(void *context, Uint64 pcm)
+{
+    OPUS_music *music = (OPUS_music *)context;
+    int result = opus.op_pcm_seek(music->of, pcm);
+    if (result < 0) {
+        return set_op_error("op_pcm_seek", result);
+    }
+    return 0;
+}
+
+/* Tell the position (time is in samples) */
+static Uint64 OPUS_TellPCM(void *context)
+{
+    OPUS_music *music = (OPUS_music *)context;
+    opus_int64 result = opus.op_pcm_tell(music->of);
+    if (result < 0) {
+        set_op_error("op_pcm_tell", result);
+        return SDL_MAX_UINT64;
+    }
+    return result;
+}
+
 /* Close the given Opus stream */
 static void OPUS_Delete(void *context)
 {
@@ -360,6 +386,8 @@ Mix_MusicInterface Mix_MusicInterface_Opus =
     NULL,   /* IsPlaying */
     OPUS_GetAudio,
     OPUS_Seek,
+    OPUS_SeekPCM,
+    OPUS_TellPCM,
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */

@@ -82,6 +82,12 @@ typedef struct
     /* Seek to a play position (in seconds) */
     int (*Seek)(void *music, double position);
 
+    /* Seek to a play position (in samples) */
+    int (*SeekPCM)(void *music, Uint64 position);
+
+    /* Tell the play position (in samples) */
+    Uint64 (*TellPCM)(void *music);
+
     /* Pause playing music */
     void (*Pause)(void *music);
 

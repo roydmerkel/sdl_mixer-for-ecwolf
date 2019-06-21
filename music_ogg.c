@@ -182,6 +182,8 @@ static long sdl_tell_func(void *datasource)
 }
 
 static int OGG_Seek(void *context, double time);
+static int OGG_SeekPCM(void *context, Uint64 pcm);
+static Uint64 OGG_TellPCM(void *context);
 static void OGG_Delete(void *context);
 
 static int OGG_UpdateSection(OGG_music *music)
@@ -410,6 +412,29 @@ static int OGG_Seek(void *context, double time)
     return 0;
 }
 
+/* Jump (seek) to a given position (time is in samples) */
+static int OGG_SeekPCM(void *context, Uint64 pcm)
+{
+    OGG_music *music = (OGG_music *)context;
+    int result = vorbis.ov_pcm_seek(&music->vf, pcm);
+    if (result < 0) {
+        return set_ov_error("ov_pcm_seek", result);
+    }
+    return 0;
+}
+
+/* Tell the position (time is in samples) */
+static Uint64 OGG_TellPCM(void *context)
+{
+    OGG_music *music = (OGG_music *)context;
+    ogg_int64_t result = vorbis.ov_pcm_tell(&music->vf);
+    if (result < 0) {
+        set_ov_error("ov_pcm_tell", result);
+        return SDL_MAX_UINT64;
+    }
+    return result;
+}
+
 /* Close the given OGG stream */
 static void OGG_Delete(void *context)
 {
@@ -444,6 +469,8 @@ Mix_MusicInterface Mix_MusicInterface_OGG =
     NULL,   /* IsPlaying */
     OGG_GetAudio,
     OGG_Seek,
+    OGG_SeekPCM,
+    OGG_TellPCM,
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */

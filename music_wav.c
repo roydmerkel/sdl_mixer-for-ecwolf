@@ -625,6 +625,8 @@ Mix_MusicInterface Mix_MusicInterface_WAV =
     NULL,   /* IsPlaying */
     WAV_GetAudio,
     NULL,   /* Seek */
+    NULL,   /* SeekPCM */
+    NULL,   /* TellPCM */
     NULL,   /* Pause */
     NULL,   /* Resume */
     NULL,   /* Stop */
