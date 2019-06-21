@@ -274,12 +274,12 @@ static void *OGG_CreateFromRW(SDL_RWops *src, int freesrc)
             *(value++) = '\0';
         }
 
-        if (SDL_strcasecmp(argument, "LOOPSTART") == 0)
+        if (SDL_strcasecmp(argument, "LOOPSTART") == 0 || SDL_strcasecmp(argument, "LOOP_START") == 0)
             music->loop_start = SDL_strtoull(value, NULL, 0);
         else if (SDL_strcasecmp(argument, "LOOPLENGTH") == 0) {
             music->loop_len = SDL_strtoull(value, NULL, 0);
             isLoopLength = 1;
-        } else if (SDL_strcasecmp(argument, "LOOPEND") == 0) {
+        } else if (SDL_strcasecmp(argument, "LOOPEND") == 0 || SDL_strcasecmp(argument, "LOOP_END") == 0) {
             isLoopLength = 0;
             music->loop_end = SDL_strtoull(value, NULL, 0);
         }

@@ -42,7 +42,9 @@ typedef struct {
     int (*op_seekable)(const OggOpusFile *);
     int (*op_read)(OggOpusFile *, opus_int16 *,int,int *);
     int (*op_pcm_seek)(OggOpusFile *,ogg_int64_t);
-    opus_int64 (*op_pcm_tell)(const OggOpusFile *);
+    ogg_int64_t (*op_pcm_tell)(const OggOpusFile *);
+    ogg_int64_t (*op_pcm_total)(const OggOpusFile *, int);
+    const OpusTags *(*op_tags)(const OggOpusFile *, int);
 } opus_loader;
 
 static opus_loader opus = {
@@ -80,7 +82,9 @@ static int OPUS_Load(void)
         FUNCTION_LOADER(op_seekable, int (*)(const OggOpusFile *))
         FUNCTION_LOADER(op_read, int (*)(OggOpusFile *, opus_int16 *,int,int *))
         FUNCTION_LOADER(op_pcm_seek, int (*)(OggOpusFile *,ogg_int64_t))
-        FUNCTION_LOADER(op_pcm_tell, opus_int64 (*)(OggOpusFile *))
+        FUNCTION_LOADER(op_pcm_tell, ogg_int64_t (*)(const OggOpusFile *))
+        FUNCTION_LOADER(op_pcm_total, ogg_int64_t (*)(const OggOpusFile *,int))
+        FUNCTION_LOADER(op_tags, const OpusTags *(*)(const OggOpusFile *,int))
     }
     ++opus.loaded;
 
@@ -112,6 +116,10 @@ typedef struct {
     SDL_AudioStream *stream;
     char *buffer;
     int buffer_size;
+    int loop;
+    ogg_int64_t loop_start;
+    ogg_int64_t loop_end;
+    ogg_int64_t loop_len;
 } OPUS_music;
 
 
@@ -205,6 +213,9 @@ static void *OPUS_CreateFromRW(SDL_RWops *src, int freesrc)
     OPUS_music *music;
     OpusFileCallbacks callbacks;
     int err = 0;
+    const OpusTags *tags;
+    int isLoopLength = 0, i;
+    ogg_int64_t fullLength;
 
     music = (OPUS_music *)SDL_calloc(1, sizeof *music);
     if (!music) {
@@ -214,6 +225,10 @@ static void *OPUS_CreateFromRW(SDL_RWops *src, int freesrc)
     music->src = src;
     music->volume = MIX_MAX_VOLUME;
     music->section = -1;
+    music->loop = -1;
+    music->loop_start = -1;
+    music->loop_end = 0;
+    music->loop_len = 0;
 
     SDL_zero(callbacks);
     callbacks.read = sdl_read_func;
@@ -239,6 +254,45 @@ static void *OPUS_CreateFromRW(SDL_RWops *src, int freesrc)
         return NULL;
     }
 
+    tags = opus.op_tags(music->of, -1);
+    for (i = 0; i < tags->comments; i++) {
+        char *param = SDL_strdup(tags->user_comments[i]);
+        char *argument = param;
+        char *value = SDL_strchr(param, '=');
+        if (value == NULL) {
+            value = param + SDL_strlen(param);
+        } else {
+            *(value++) = '\0';
+        }
+
+        if (SDL_strcasecmp(argument, "LOOPSTART") == 0 || SDL_strcasecmp(argument, "LOOP_START") == 0)
+            music->loop_start = SDL_strtoull(value, NULL, 0);
+        else if (SDL_strcasecmp(argument, "LOOPLENGTH") == 0) {
+            music->loop_len = SDL_strtoull(value, NULL, 0);
+            isLoopLength = 1;
+        } else if (SDL_strcasecmp(argument, "LOOPEND") == 0 || SDL_strcasecmp(argument, "LOOP_END") == 0) {
+            isLoopLength = 0;
+            music->loop_end = SDL_strtoull(value, NULL, 0);
+        }
+        SDL_free(param);
+    }
+
+    if (isLoopLength == 1) {
+        music->loop_end = music->loop_start + music->loop_len;
+    } else {
+        music->loop_len = music->loop_end - music->loop_start;
+    }
+
+    fullLength = opus.op_pcm_total(music->of, -1);
+    if (((music->loop_start >= 0) || (music->loop_end > 0)) &&
+        ((music->loop_start < music->loop_end) || (music->loop_end == 0)) &&
+         (music->loop_start < fullLength) &&
+         (music->loop_end <= fullLength)) {
+        if (music->loop_start < 0) music->loop_start = 0;
+        if (music->loop_end == 0)  music->loop_end = fullLength;
+        music->loop = 1;
+    }
+
     music->freesrc = freesrc;
     return music;
 }
@@ -262,7 +316,9 @@ static int OPUS_Play(void *context, int play_count)
 static int OPUS_GetSome(void *context, void *data, int bytes, SDL_bool *done)
 {
     OPUS_music *music = (OPUS_music *)context;
-    int filled, samples, section;
+    SDL_bool looped = SDL_FALSE;
+    int filled, samples, result, section;
+    ogg_int64_t pcmPos;
 
     filled = SDL_AudioStreamGet(music->stream, data, bytes);
     if (filled != 0) {
@@ -289,12 +345,23 @@ static int OPUS_GetSome(void *context, void *data, int bytes, SDL_bool *done)
         }
     }
 
+    pcmPos = opus.op_pcm_tell(music->of);
+    if ((music->loop == 1) && (pcmPos >= music->loop_end)) {
+        samples -= (int)(pcmPos - music->loop_end) * sizeof(Sint16);
+        result = opus.op_pcm_seek(music->of, music->loop_start);
+        if (result < 0) {
+            set_op_error("op_pcm_seek", result);
+            return -1;
+        }
+        looped = SDL_TRUE;
+    }
+
     if (samples > 0) {
         filled = samples * music->op_info->channel_count * 2;
         if (SDL_AudioStreamPut(music->stream, music->buffer, filled) < 0) {
             return -1;
         }
-    } else {
+    } else if (!looped) {
         if (music->play_count == 1) {
             music->play_count = 0;
             SDL_AudioStreamFlush(music->stream);
