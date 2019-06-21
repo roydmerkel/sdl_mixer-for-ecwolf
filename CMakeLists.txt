@@ -151,6 +151,12 @@ endif()
 
 if("${SDL_VERSION_STRING}" VERSION_LESS "2.0.0")
 	set(MIXER_LIB_NAME "SDL_mixer")
+	set(EXTRA_SOURCES
+		sdl_resample/SDL_audiocvt.c
+		sdl_resample/SDL_audiotypecvt.c
+		sdl_resample/SDL_dataqueue.c
+		sdl_resample/SDL_rwops.c
+	)
 else()
 	set(MIXER_LIB_NAME "SDL2_mixer")
 endif()
@@ -206,7 +212,6 @@ endif()
 add_library(SDL2_mixer ${LIB_TYPE}
 	${EXTRA_SOURCES}
 	${MIDI_SOURCES}
-	sdl_resample/SDL_audiocvt.c
 	effect_position.c
 	effect_stereoreverse.c
 	effects_internal.c

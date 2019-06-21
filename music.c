@@ -20,11 +20,13 @@
 */
 #include <string.h> /* for strtok() and strtok_s() */
 
+#include "SDL_mixer.h"
+#include "SDL_timer.h"
+#if SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_hints.h"
 #include "SDL_log.h"
-#include "SDL_timer.h"
+#endif
 
-#include "SDL_mixer.h"
 #include "mixer.h"
 #include "music.h"
 
@@ -43,8 +45,19 @@
 #include "native_midi/native_midi.h"
 
 /* Check to make sure we are building with a new enough SDL */
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 7)
+#if SDL_COMPILEDVERSION >= SDL_VERSIONNUM(2, 0, 0) && SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 7)
 #error You need SDL 2.0.7 or newer from http://www.libsdl.org
+#endif
+
+#if !SDL_VERSION_ATLEAST(2,0,0)
+#define SDL_GetHintBoolean(a, b) (b)
+
+static int SDL_OutOfMemoryNew() {
+    SDL_OutOfMemory();
+    return -1;
+}
+#undef SDL_OutOfMemory
+#define SDL_OutOfMemory SDL_OutOfMemoryNew
 #endif
 
 /* Set this hint to true if you want verbose logging of music interfaces */

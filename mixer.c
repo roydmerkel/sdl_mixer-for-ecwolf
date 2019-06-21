@@ -33,6 +33,13 @@
 #include "load_aiff.h"
 #include "load_voc.h"
 
+#if !SDL_VERSION_ATLEAST(2,0,0)
+#define SDL_CloseAudioDevice(a) SDL_CloseAudio()
+#define SDL_LockAudioDevice(a) SDL_LockAudio()
+#define SDL_UnlockAudioDevice(a) SDL_UnlockAudio()
+#define SDL_PauseAudioDevice(a,b) SDL_PauseAudio((b))
+#endif
+
 #define __MIX_INTERNAL_EFFECT__
 #include "effects_internal.h"
 
@@ -44,7 +51,9 @@
 
 static int audio_opened = 0;
 static SDL_AudioSpec mixer;
+#if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_AudioDeviceID audio_device;
+#endif
 
 typedef struct _Mix_effectinfo
 {
@@ -414,7 +423,11 @@ int Mix_OpenAudioDevice(int frequency, Uint16 format, int nchannels, int chunksi
     desired.userdata = NULL;
 
     /* Accept nearly any audio format */
+#if SDL_VERSION_ATLEAST(2,0,0)
     if ((audio_device = SDL_OpenAudioDevice(device, 0, &desired, &mixer, allowed_changes)) == 0) {
+#else
+    if (SDL_OpenAudio(&desired, &mixer) != 0) {
+#endif
         return(-1);
     }
 #if 0
@@ -457,9 +470,13 @@ int Mix_OpenAudioDevice(int frequency, Uint16 format, int nchannels, int chunksi
 /* Open the mixer with a certain desired audio format */
 int Mix_OpenAudio(int frequency, Uint16 format, int nchannels, int chunksize)
 {
+#if SDL_VERSION_ATLEAST(2,0,0)
     return Mix_OpenAudioDevice(frequency, format, nchannels, chunksize, NULL,
                                 SDL_AUDIO_ALLOW_FREQUENCY_CHANGE |
                                 SDL_AUDIO_ALLOW_CHANNELS_CHANGE);
+#else
+    return Mix_OpenAudioDevice(frequency, format, nchannels, chunksize, NULL, 0);
+#endif
 }
 
 /* Dynamically change the number of channels managed by the mixer.
@@ -1246,7 +1263,9 @@ void Mix_CloseAudio(void)
             Mix_HaltChannel(-1);
             _Mix_DeinitEffects();
             SDL_CloseAudioDevice(audio_device);
+#if SDL_VERSION_ATLEAST(2,0,0)
             audio_device = 0;
+#endif
             SDL_free(mix_channel);
             mix_channel = NULL;
 

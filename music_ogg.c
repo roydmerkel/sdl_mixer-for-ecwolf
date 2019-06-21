@@ -36,6 +36,10 @@
 #include <vorbis/vorbisfile.h>
 #endif
 
+#if !SDL_VERSION_ATLEAST(2,0,0)
+#define SDL_zero(x) SDL_memset(&(x), 0, sizeof((x)))
+#endif
+
 typedef struct {
     int loaded;
     void *handle;
