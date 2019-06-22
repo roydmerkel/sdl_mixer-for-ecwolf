@@ -151,14 +151,18 @@ endif()
 
 if("${SDL_VERSION_STRING}" VERSION_LESS "2.0.0")
 	set(MIXER_LIB_NAME "SDL_mixer")
-	set(EXTRA_SOURCES
+else()
+	set(MIXER_LIB_NAME "SDL2_mixer")
+endif()
+if("${SDL_VERSION_STRING}" VERSION_LESS "2.0.6")
+	list(APPEND EXTRA_SOURCES sdl_resample/SDL_rwops.c)
+endif()
+if("${SDL_VERSION_STRING}" VERSION_LESS "2.0.7")
+	list(APPEND EXTRA_SOURCES
 		sdl_resample/SDL_audiocvt.c
 		sdl_resample/SDL_audiotypecvt.c
 		sdl_resample/SDL_dataqueue.c
-		sdl_resample/SDL_rwops.c
 	)
-else()
-	set(MIXER_LIB_NAME "SDL2_mixer")
 endif()
 
 if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)

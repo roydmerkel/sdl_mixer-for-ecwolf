@@ -25,6 +25,8 @@
 
 #include "music_wav.h"
 
+#include "sdl_resample/compat.h"
+
 
 typedef struct {
     SDL_bool active;

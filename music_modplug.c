@@ -21,6 +21,8 @@
 
 #ifdef MUSIC_MOD_MODPLUG
 
+#include "sdl_resample/compat.h"
+
 #include "SDL_loadso.h"
 
 #include "music_modplug.h"

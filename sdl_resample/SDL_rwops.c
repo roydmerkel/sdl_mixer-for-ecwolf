@@ -21,10 +21,10 @@
 
 #include "SDL.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#if !SDL_VERSION_ATLEAST(2,0,5)
 /* Load all the data from an SDL data stream */
 void *
-SDL_LoadFile_RW(SDL_RWops * src, size_t *datasize, int freesrc)
+Mix_LoadFile_RW(SDL_RWops * src, size_t *datasize, int freesrc)
 {
     const int FILE_CHUNK_SIZE = 1024;
     Sint64 size;

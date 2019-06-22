@@ -21,15 +21,14 @@
 
 #include "SDL.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#include "compat.h"
+
+#if !SDL_VERSION_ATLEAST(2,0,7)
 #include "SDL_audio.h"
 #include "SDL_cpuinfo.h"
 #include "SDL_audiocvt.h"
 
-#include <assert.h>
-#define SDL_assert assert
-
-#define LOG_DEBUG_CONVERT
+#define LOG_DEBUG_CONVERT(a,b)
 
 #if 0
 /* !!! FIXME: disabled until we fix https://bugzilla.libsdl.org/show_bug.cgi?id=4186 */
@@ -1392,7 +1391,7 @@ SDL_Convert_F32_to_S32_NEON(SDL_AudioCVT *cvt, SDL_AudioFormat format)
 
 
 
-void SDL_ChooseAudioConverters(void)
+void Mix_ChooseAudioConverters(void)
 {
     static SDL_bool converters_chosen = SDL_FALSE;
 

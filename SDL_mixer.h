@@ -29,19 +29,6 @@
 #include "SDL_version.h"
 #include "begin_code.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
-#include "sdl_resample/SDL_audiocvt.h"
-
-void *SDL_LoadFile_RW(SDL_RWops * src, size_t *datasize, int freesrc);
-
-#define SDL_MixAudioFormat(a,b,c,d,e) SDL_MixAudio((a),(b),(d),(e))
-#define SDL_Log printf
-
-#define SDL_MIN_SINT16 -0x8000
-#define SDL_MAX_SINT16 0x7FFF
-#define SDL_MAX_UINT64 0xFFFFFFFFFFFFFFFFu
-#endif
-
 /* Set up for C function definitions, even when using C++ */
 #ifdef __cplusplus
 extern "C" {

@@ -33,12 +33,7 @@
 #include "load_aiff.h"
 #include "load_voc.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
-#define SDL_CloseAudioDevice(a) SDL_CloseAudio()
-#define SDL_LockAudioDevice(a) SDL_LockAudio()
-#define SDL_UnlockAudioDevice(a) SDL_UnlockAudio()
-#define SDL_PauseAudioDevice(a,b) SDL_PauseAudio((b))
-#endif
+#include "sdl_resample/compat.h"
 
 #define __MIX_INTERNAL_EFFECT__
 #include "effects_internal.h"
@@ -470,13 +465,9 @@ int Mix_OpenAudioDevice(int frequency, Uint16 format, int nchannels, int chunksi
 /* Open the mixer with a certain desired audio format */
 int Mix_OpenAudio(int frequency, Uint16 format, int nchannels, int chunksize)
 {
-#if SDL_VERSION_ATLEAST(2,0,0)
     return Mix_OpenAudioDevice(frequency, format, nchannels, chunksize, NULL,
                                 SDL_AUDIO_ALLOW_FREQUENCY_CHANGE |
                                 SDL_AUDIO_ALLOW_CHANNELS_CHANGE);
-#else
-    return Mix_OpenAudioDevice(frequency, format, nchannels, chunksize, NULL, 0);
-#endif
 }
 
 /* Dynamically change the number of channels managed by the mixer.

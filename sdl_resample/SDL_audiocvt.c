@@ -26,7 +26,9 @@
 
 #include "SDL.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
+#include "compat.h"
+
+#if !SDL_VERSION_ATLEAST(2,0,7)
 #include "SDL_audio.h"
 
 #include "SDL_loadso.h"
@@ -38,7 +40,7 @@
 #include <assert.h>
 #include <math.h>
 
-extern void SDL_ChooseAudioConverters(void);
+extern void Mix_ChooseAudioConverters(void);
 /* These pointers get set during SDL_ChooseAudioConverters() to various SIMD implementations. */
 extern SDL_AudioFilter SDL_Convert_S8_to_F32;
 extern SDL_AudioFilter SDL_Convert_U8_to_F32;
@@ -51,34 +53,16 @@ extern SDL_AudioFilter SDL_Convert_F32_to_S16;
 extern SDL_AudioFilter SDL_Convert_F32_to_U16;
 extern SDL_AudioFilter SDL_Convert_F32_to_S32;
 
-#define SDL_assert(x) assert((x))
-#define SDL_ceil(x) ceil((x))
-#define SDL_pow(x, y) pow((x), (y))
-#define SDL_sinf(x) sinf((x))
-#define SDL_sqrt(x) sqrt((x))
-
-#define SDL_zero(x) SDL_memset(&(x), 0, sizeof((x)))
-#define SDL_zerop(x) SDL_memset((x), 0, sizeof(*(x)))
-
-static int SDL_InvalidParamError(const char *param) {
-    SDL_SetError("Invalid parameter: %s", param);
-    return -1;
-}
-
+#if !SDL_VERSION_ATLEAST(2,0,0)
 static int SDL_SetErrorNew(const char* fmt) {
     SDL_SetError(fmt);
     return -1;
 }
 #define SDL_SetError SDL_SetErrorNew
-static int SDL_OutOfMemoryNew() {
-    SDL_OutOfMemory();
-    return -1;
-}
-#undef SDL_OutOfMemory
-#define SDL_OutOfMemory SDL_OutOfMemoryNew
+#endif
 
 #define DEBUG_AUDIOSTREAM 0
-#define LOG_DEBUG_CONVERT
+#define LOG_DEBUG_CONVERT(a,b)
 
 #ifdef __SSE3__
 #define HAVE_SSE3_INTRINSICS 1
@@ -955,7 +939,7 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
     cvt->rate_incr = ((double) dst_rate) / ((double) src_rate);
 
     /* Make sure we've chosen audio conversion functions (MMX, scalar, etc.) */
-    SDL_ChooseAudioConverters();
+    Mix_ChooseAudioConverters();
 
     /* Type conversion goes like this now:
         - byteswap to CPU native format first if necessary.

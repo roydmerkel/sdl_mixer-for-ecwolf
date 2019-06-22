@@ -26,6 +26,8 @@
 
 #include <stdio.h>
 
+#include "sdl_resample/compat.h"
+
 #include "SDL_loadso.h"
 
 #include "music_fluidsynth.h"

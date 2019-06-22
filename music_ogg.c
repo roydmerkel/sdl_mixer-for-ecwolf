@@ -23,6 +23,8 @@
 
 /* This file supports Ogg Vorbis music streams */
 
+#include "sdl_resample/compat.h"
+
 #include "SDL_loadso.h"
 
 #include "music_ogg.h"
@@ -34,10 +36,6 @@
 #include <tremor/ivorbisfile.h>
 #else
 #include <vorbis/vorbisfile.h>
-#endif
-
-#if !SDL_VERSION_ATLEAST(2,0,0)
-#define SDL_zero(x) SDL_memset(&(x), 0, sizeof((x)))
 #endif
 
 typedef struct {

@@ -21,23 +21,15 @@
 
 #include "SDL.h"
 
-#if !SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_dataqueue.h"
 
-#include <assert.h>
+#include "compat.h"
 
-#define SDL_assert(x) assert((x))
-#define SDL_zero(x) SDL_memset(&(x), 0, sizeof((x)))
-#define SDL_zerop(x) SDL_memset((x), 0, sizeof(*(x)))
+#if !SDL_VERSION_ATLEAST(2,0,7)
 
+#ifndef SDL_VARIABLE_LENGTH_ARRAY
 #define SDL_VARIABLE_LENGTH_ARRAY 1
-
-static int SDL_OutOfMemoryNew() {
-    SDL_OutOfMemory();
-    return -1;
-}
-#undef SDL_OutOfMemory
-#define SDL_OutOfMemory SDL_OutOfMemoryNew
+#endif
 
 typedef struct SDL_DataQueuePacket
 {

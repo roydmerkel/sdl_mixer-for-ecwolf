@@ -26,11 +26,10 @@
 
 #include "SDL_mixer.h"
 
+#include "sdl_resample/compat.h"
+
 #if SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_assert.h"
-#else
-#include <assert.h>
-#define SDL_assert(x) assert((x))
 #endif
 #include "SDL_loadso.h"
 

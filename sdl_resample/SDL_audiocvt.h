@@ -21,6 +21,29 @@
 
 #pragma once
 
+#include <SDL.h>
+
+#if !SDL_VERSION_ATLEAST(2,0,7)
+#define SDL_NewAudioStream Mix_NewAudioStream
+#define SDL_AudioStreamPut Mix_AudioStreamPut
+#define SDL_AudioStreamGet Mix_AudioStreamGet
+#define SDL_AudioStreamAvailable Mix_AudioStreamAvailable
+#define SDL_AudioStreamFlush Mix_AudioStreamFlush
+#define SDL_AudioStreamClear Mix_AudioStreamClear
+#define SDL_FreeAudioStream Mix_FreeAudioStream
+
+#define SDL_Convert_S8_to_F32 Mix_Convert_S8_to_F32
+#define SDL_Convert_U8_to_F32 Mix_Convert_U8_to_F32
+#define SDL_Convert_S16_to_F32 Mix_Convert_S16_to_F32
+#define SDL_Convert_U16_to_F32 Mix_Convert_U16_to_F32
+#define SDL_Convert_S32_to_F32 Mix_Convert_S32_to_F32
+#define SDL_Convert_F32_to_S8 Mix_Convert_F32_to_S8
+#define SDL_Convert_F32_to_U8 Mix_Convert_F32_to_U8
+#define SDL_Convert_F32_to_S16 Mix_Convert_F32_to_S16
+#define SDL_Convert_F32_to_U16 Mix_Convert_F32_to_U16
+#define SDL_Convert_F32_to_S32 Mix_Convert_F32_to_S32
+
+
 /**
  *  \brief Audio format flags.
  *
@@ -249,3 +272,5 @@ extern DECLSPEC void SDLCALL SDL_AudioStreamClear(SDL_AudioStream *stream);
  *  \sa SDL_AudioStreamClear
  */
 extern DECLSPEC void SDLCALL SDL_FreeAudioStream(SDL_AudioStream *stream);
+
+#endif

@@ -21,6 +21,18 @@
 #ifndef SDL_dataqueue_h_
 #define SDL_dataqueue_h_
 
+#include <SDL.h>
+
+#if !SDL_VERSION_ATLEAST(2,0,7)
+#define SDL_NewDataQueue Mix_NewDataQueue
+#define SDL_FreeDataQueue Mix_FreeDataQueue
+#define SDL_ClearDataQueue Mix_ClearDataQueue
+#define SDL_WriteToDataQueue Mix_WriteToDataQueue
+#define SDL_ReadFromDataQueue Mix_ReadFromDataQueue
+#define SDL_PeekIntoDataQueue Mix_PeekIntoDataQueue
+#define SDL_CountDataQueue Mix_CountDataQueue
+#define SDL_ReserveSpaceInDataQueue Mix_ReserveSpaceInDataQueue
+
 /* this is not (currently) a public API. But maybe it should be! */
 
 struct SDL_DataQueue;
@@ -48,6 +60,7 @@ size_t SDL_CountDataQueue(SDL_DataQueue *queue);
    Returns pointer to buffer of at least (len) bytes, NULL on error.
 */
 void *SDL_ReserveSpaceInDataQueue(SDL_DataQueue *queue, const size_t len);
+#endif
 
 #endif /* SDL_dataqueue_h_ */
 

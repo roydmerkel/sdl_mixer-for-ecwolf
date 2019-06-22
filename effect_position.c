@@ -35,6 +35,8 @@
 #include "SDL_mixer.h"
 #include "mixer.h"
 
+#include "sdl_resample/compat.h"
+
 #define __MIX_INTERNAL_EFFECT__
 #include "effects_internal.h"
 
