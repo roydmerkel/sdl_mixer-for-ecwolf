@@ -174,7 +174,7 @@ endif()
 
 if (WIN32 OR APPLE)
 	add_definitions(-DMUSIC_MID_NATIVE)
-	set(MIDI_SOURCES native_midi/native_midi_common.c)
+	set(MIDI_SOURCES music_nativemidi.c native_midi/native_midi_common.c)
 	if (APPLE)
 		set(MIDI_SOURCES ${MIDI_SOURCES} native_midi/native_midi_macosx.c)
 		find_library(AUDIOTOOLBOX AudioToolbox)
