@@ -19,6 +19,13 @@ if(NOT VENDORED_LIB)
 	option(ANDROID "Build for Android" OFF)
 endif()
 
+# Visual Studio 2005 compatibility for legacy builds
+if(MSVC_VERSION EQUAL 1400)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vs2005compat)
+	add_definitions(-Dinline=__inline)
+	add_definitions(-D_USE_MATH_DEFINES)
+endif()
+
 # This could be broken out into individual options, but the testing overhead
 # for that is too high right now. So until we have a reason to do so we'll just
 # do all or nothing.
