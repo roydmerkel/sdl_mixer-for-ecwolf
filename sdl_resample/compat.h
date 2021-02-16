@@ -6,6 +6,8 @@
 #if !SDL_VERSION_ATLEAST(2,0,0)
 // SDL 1.2 support is a bit of a hack since we need to ignore a lot of features
 
+#define SDL_DISABLE_PMMINTRIN_H 1
+
 #include <assert.h>
 #define SDL_assert assert
 #define SDL_CloseAudioDevice(a) SDL_CloseAudio()
@@ -59,6 +61,8 @@ static SDL_bool SDL_GetHintBoolean(const char* name, SDL_bool default_value) {
 
 #if !SDL_VERSION_ATLEAST(2,0,7)
 #include "SDL_audiocvt.h"
+
+int Mix_BuildAudioCVT(SDL_AudioCVT * cvt, SDL_AudioFormat src_fmt, Uint8 src_channels, int src_rate, SDL_AudioFormat dst_fmt, Uint8 dst_channels, int dst_rate);
 
 // Use newer resampler even though this function is nominally available
 #define SDL_BuildAudioCVT Mix_BuildAudioCVT

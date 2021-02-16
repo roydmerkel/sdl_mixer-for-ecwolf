@@ -64,8 +64,10 @@ static int SDL_SetErrorNew(const char* fmt) {
 #define DEBUG_AUDIOSTREAM 0
 #define LOG_DEBUG_CONVERT(a,b)
 
+#if SDL_VERSION_ATLEAST(2,0,0)
 #ifdef __SSE3__
 #define HAVE_SSE3_INTRINSICS 1
+#endif
 #endif
 
 #if HAVE_SSE3_INTRINSICS
