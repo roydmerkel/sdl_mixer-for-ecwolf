@@ -27,6 +27,8 @@
 #include "load_aiff.h"
 #include "load_voc.h"
 
+#include "sdl_resample/compat.h"
+
 #define MIX_INTERNAL_EFFECT__
 #include "effects_internal.h"
 
@@ -61,7 +63,9 @@ SDL_COMPILE_TIME_ASSERT(SDL_MIXER_PATCHLEVEL_max, SDL_MIXER_PATCHLEVEL <= 99);
 
 static int audio_opened = 0;
 static SDL_AudioSpec mixer;
+#if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_AudioDeviceID audio_device;
+#endif
 
 typedef struct _Mix_effectinfo
 {
@@ -110,7 +114,11 @@ static void *music_data = NULL;
 static const char **chunk_decoders = NULL;
 static int num_decoders = 0;
 
+#if SDL_VERSION_ATLEAST(2,0,0)
 static SDL_atomic_t master_volume = { MIX_MAX_VOLUME };
+#else
+static int master_volume = MIX_MAX_VOLUME;
+#endif
 
 int Mix_GetNumChunkDecoders(void)
 {
@@ -485,7 +493,11 @@ int Mix_OpenAudioDevice(int frequency, Uint16 format, int nchannels, int chunksi
     desired.userdata = NULL;
 
     /* Accept nearly any audio format */
+#if SDL_VERSION_ATLEAST(2,0,0)
     if ((audio_device = SDL_OpenAudioDevice(device, 0, &desired, &mixer, allowed_changes)) == 0) {
+#else
+    if (SDL_OpenAudio(&desired, &mixer) != 0) {
+#endif
         return(-1);
     }
 #if 0
@@ -1349,7 +1361,9 @@ void Mix_CloseAudio(void)
             Mix_HaltChannel(-1);
             _Mix_DeinitEffects();
             SDL_CloseAudioDevice(audio_device);
+#if SDL_VERSION_ATLEAST(2,0,0)
             audio_device = 0;
+#endif
             SDL_free(mix_channel);
             mix_channel = NULL;
 

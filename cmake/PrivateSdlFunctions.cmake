@@ -69,6 +69,12 @@ macro(sdl_find_sdl2 TARGET VERSION)
 endmacro()
 
 function(read_absolute_symlink DEST PATH)
+    # ECWolf: Old CMake compatibility
+    if(CMAKE_VERSION VERSION_LESS 3.14)
+        message(FATAL_ERROR "CMake >= 3.14 needed")
+        return()
+    endif()
+
     file(READ_SYMLINK "${PATH}" p)
     if (NOT IS_ABSOLUTE p)
         get_filename_component(pdir "${PATH}" DIRECTORY)

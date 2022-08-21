@@ -9,6 +9,7 @@
     resample.c
 */
 
+#include "sdl_resample/compat.h"
 #include "SDL.h"
 
 #include "timidity.h"

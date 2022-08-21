@@ -23,6 +23,8 @@
 
 #ifdef MUSIC_MID_TIMIDITY
 
+#include "sdl_resample/SDL_audiocvt.h"
+
 #include "music_timidity.h"
 
 #include "timidity/timidity.h"

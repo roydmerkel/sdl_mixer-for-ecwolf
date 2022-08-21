@@ -26,6 +26,8 @@
 
 #include "music.h"
 
+#include "sdl_resample/compat.h"
+
 #define ENABLE_ALL_MP3_TAGS
 
 #if defined(MUSIC_WAV) || defined(ENABLE_ALL_MP3_TAGS)

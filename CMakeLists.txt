@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.16)
+# ECWolf: Lower CMake requirement
+cmake_minimum_required(VERSION 3.10...3.16)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -10,6 +11,23 @@ set(SDL_REQUIRED_VERSION 2.0.9)
 
 # For historical reasons this is 3.0.0 rather than the expected 1.0.0
 set(DYLIB_COMPATIBILITY_VERSION "3.0.0")
+
+macro(ecwolf_dependent_option _NAME _DESC _DEFLT _DEPTEST _FAILDFLT)
+  # ECWolf: vendoring. Modified version of cmake_dependent_option source.
+  set(${option}_AVAILABLE 1)
+  foreach(d ${_DEPTEST})
+    string(REGEX REPLACE " +" ";" CMAKE_DEPENDENT_OPTION_DEP "${d}")
+    if(${CMAKE_DEPENDENT_OPTION_DEP})
+    else()
+      set(${option}_AVAILABLE 0)
+    endif()
+  endforeach()
+  if(${option}_AVAILABLE)
+    set(${_NAME} ${_DEFLT})
+  else()
+    set(${_NAME} ${_FAILDFLT})
+  endif()
+endmacro()
 
 include(PrivateSdlFunctions)
 sdl_calculate_derived_version_variables()
@@ -49,80 +67,82 @@ include(CMakeDependentOption)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-option(CMAKE_POSITION_INDEPENDENT_CODE "Build static libraries with -fPIC" ON)
-option(BUILD_SHARED_LIBS "Build the library as a shared library" ON)
+# ECWolf: Set these options for vendoring
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(BUILD_SHARED_LIBS OFF)
 
 # Save BUILD_SHARED_LIBS variable as soon as possible
 set(SDL2MIXER_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 
-option(SDL2MIXER_INSTALL "Enable SDL2mixer install target" ON)
-option(SDL2MIXER_DEPS_SHARED "Default value for loading dependencies dynamically" ON)
-option(SDL2MIXER_VENDORED "Use vendored third-party libraries" ${vendored_default})
+# ECWolf: Setting options for vendoring
+set(SDL2MIXER_INSTALL OFF)
+set(SDL2MIXER_DEPS_SHARED OFF)
+set(SDL2MIXER_VENDORED ${INTERNAL_SDL_MIXER_CODECS})
 
-option(SDL2MIXER_SAMPLES "Build the SDL2_mixer sample program(s)" ON)
-cmake_dependent_option(SDL2MIXER_SAMPLES_INSTALL "Install the SDL2_mixer sample program(s)" OFF "SDL2MIXER_SAMPLES;SDL2MIXER_INSTALL" OFF)
+set(SDL2MIXER_SAMPLES OFF)
+ecwolf_dependent_option(SDL2MIXER_SAMPLES_INSTALL "Install the SDL2_mixer sample program(s)" OFF "SDL2MIXER_SAMPLES;SDL2MIXER_INSTALL" OFF)
 
 if(UNIX AND NOT APPLE)
     set(sdl2mixer_cmd_default ON)
 else()
     set(sdl2mixer_cmd_default OFF)
 endif()
-option(SDL2MIXER_CMD "Support an external music player" ${sdl2mixer_cmd_default})
+set(SDL2MIXER_CMD OFF)
 
-option(SDL2MIXER_FLAC "Enable FLAC music" ON)
+set(SDL2MIXER_FLAC ON)
 
-cmake_dependent_option(SDL2MIXER_FLAC_LIBFLAC "Enable FLAC music using libFLAC" ON SDL2MIXER_FLAC OFF)
-cmake_dependent_option(SDL2MIXER_FLAC_LIBFLAC_SHARED "Dynamically load LIBFLAC" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_FLAC_LIBFLAC OFF)
+ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC "Enable FLAC music using libFLAC" ON SDL2MIXER_FLAC OFF)
+ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC_SHARED "Dynamically load LIBFLAC" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_FLAC_LIBFLAC OFF)
 
-cmake_dependent_option(SDL2MIXER_FLAC_DRFLAC "Enable FLAC music using drflac" ON SDL2MIXER_FLAC OFF)
+ecwolf_dependent_option(SDL2MIXER_FLAC_DRFLAC "Enable FLAC music using drflac" ON SDL2MIXER_FLAC OFF)
 
-option(SDL2MIXER_MOD "Support loading MOD music" ON)
+set(SDL2MIXER_MOD ON)
 
-cmake_dependent_option(SDL2MIXER_MOD_MODPLUG "Support loading MOD music via modplug" ON SDL2MIXER_MOD OFF)
-cmake_dependent_option(SDL2MIXER_MOD_MODPLUG_SHARED "Dynamically load modplug" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MOD_MODPLUG OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_MODPLUG "Support loading MOD music via modplug" ON SDL2MIXER_MOD OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_MODPLUG_SHARED "Dynamically load modplug" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MOD_MODPLUG OFF)
 
-cmake_dependent_option(SDL2MIXER_MOD_XMP "Support loading MOD music via libxmp" OFF SDL2MIXER_MOD OFF)
-cmake_dependent_option(SDL2MIXER_MOD_XMP_LITE "Use libxmp-lite instead of libxmp" OFF SDL2MIXER_MOD_XMP OFF)
-cmake_dependent_option(SDL2MIXER_MOD_XMP_SHARED "Dynamically load libxmp(-lite)" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MOD_XMP OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_XMP "Support loading MOD music via libxmp" OFF SDL2MIXER_MOD OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_XMP_LITE "Use libxmp-lite instead of libxmp" OFF SDL2MIXER_MOD_XMP OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_XMP_SHARED "Dynamically load libxmp(-lite)" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MOD_XMP OFF)
 
 if(SDL2MIXER_MOD AND NOT (SDL2MIXER_MOD_MODPLUG OR SDL2MIXER_MOD_XMP))
     message(FATAL_EROR "MOD support was enabled (SDL2MIXER_MOD) but neither mpdplug (SDL2MIXER_MOD_MODPLUG) or xmp (SDL2MIXER_MOD_XMP) was enabled.")
 endif()
 
-option(SDL2MIXER_MP3 "Enable MP3 music" ON)
+set(SDL2MIXER_MP3 OFF)
 
-cmake_dependent_option(SDL2MIXER_MP3_DRMP3 "Support loading MP3 music via dr_mp3" ON SDL2MIXER_MP3 OFF)
+ecwolf_dependent_option(SDL2MIXER_MP3_DRMP3 "Support loading MP3 music via dr_mp3" ON SDL2MIXER_MP3 OFF)
 
-cmake_dependent_option(SDL2MIXER_MP3_MPG123 "Support loading MP3 music via MPG123" OFF SDL2MIXER_MP3 OFF)
-cmake_dependent_option(SDL2MIXER_MP3_MPG123_SHARED "Dynamically load mpg123" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MP3_MPG123 OFF)
+ecwolf_dependent_option(SDL2MIXER_MP3_MPG123 "Support loading MP3 music via MPG123" OFF SDL2MIXER_MP3 OFF)
+ecwolf_dependent_option(SDL2MIXER_MP3_MPG123_SHARED "Dynamically load mpg123" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MP3_MPG123 OFF)
 
 if(SDL2MIXER_MP3 AND NOT (SDL2MIXER_MP3_DRMP3 OR SDL2MIXER_MP3_MPG123))
     message(FATAL_ERROR "MP3 support was enabled (SDL2MIXER_MP3) but neither drmp3 (SDL2MIXER_MP3_DRMP3) or mpg123 (SDL2MIXER_MP3_MPG123) were enabled.")
 endif()
 
-option(SDL2MIXER_MIDI "Enable MIDI music" ON)
+set(SDL2MIXER_MIDI ON)
 
-cmake_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH "Support FluidSynth MIDI output" ON "SDL2MIXER_MIDI;NOT SDL2MIXER_VENDORED" OFF)
-cmake_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED "Dynamically load libfluidsynth" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MIDI_FLUIDSYNTH OFF)
+ecwolf_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH "Support FluidSynth MIDI output" ON "SDL2MIXER_MIDI;NOT SDL2MIXER_VENDORED" OFF)
+ecwolf_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED "Dynamically load libfluidsynth" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MIDI_FLUIDSYNTH OFF)
 
 if(WIN32 OR APPLE OR HAIKU)
-    cmake_dependent_option(SDL2MIXER_MIDI_NATIVE "Support native MIDI output" ON SDL2MIXER_MIDI OFF)
+    ecwolf_dependent_option(SDL2MIXER_MIDI_NATIVE "Support native MIDI output" ON SDL2MIXER_MIDI OFF)
 else()
     set(SDL2MIXER_MIDI_NATIVE OFF)
 endif()
 
-cmake_dependent_option(SDL2MIXER_MIDI_TIMIDITY "Support timidity MIDI output" ON SDL2MIXER_MIDI OFF)
+ecwolf_dependent_option(SDL2MIXER_MIDI_TIMIDITY "Support timidity MIDI output" ON SDL2MIXER_MIDI OFF)
 
 if(SDL2MIXER_MIDI AND NOT (SDL2MIXER_MIDI_TIMIDITY OR SDL2MIXER_MIDI_NATIVE OR SDL2MIXER_MIDI_FLUIDSYNTH))
     message(FATAL_ERROR "MIDI support was enabled (SDL2MIXER_MIDI) but neither FluidSynth (SDL2MIXER_MIDI_FLUIDSYNTH), native (SDL2MIXER_MIDI_NATIVE) or timidity (SDL2MIXER_MIDI_TIMIDITY) was enabled")
 endif()
 
-option(SDL2MIXER_OPUS "Enable Opus music" ON)
-cmake_dependent_option(SDL2MIXER_OPUS_SHARED "Dynamically load libopus" ON SDL2MIXER_OPUS OFF)
+set(SDL2MIXER_OPUS ON)
+ecwolf_dependent_option(SDL2MIXER_OPUS_SHARED "Dynamically load libopus" ON SDL2MIXER_OPUS OFF)
 
 set(sdl2mixer_vorbis_strings STB TREMOR VORBISFILE)
-set(SDL2MIXER_VORBIS "STB" CACHE STRING "Enable OGG Vorbis music")
-set_property(CACHE SDL2MIXER_VORBIS PROPERTY STRINGS "${sdl2mixer_vorbis_strings}")
+set(SDL2MIXER_VORBIS "STB")
+#set_property(CACHE SDL2MIXER_VORBIS PROPERTY STRINGS "${sdl2mixer_vorbis_strings}")
 if(SDL2MIXER_VORBIS)
     if(NOT SDL2MIXER_VORBIS IN_LIST sdl2mixer_vorbis_strings)
         message(FATAL_ERROR "SDL2MIXER_VORBIS contains an invalid value (=${SDL2MIXER_VORBIS}). It must be one of ${sdl2mixer_vorbis_strings}.")
@@ -140,10 +160,10 @@ endif()
 if(SDL2MIXER_VORBIS STREQUAL "VORBISFILE")
     set(SDL2MIXER_VORBIS_VORBISFILE ON)
 endif()
-cmake_dependent_option(SDL2MIXER_VORBIS_TREMOR_SHARED "Dynamically load tremor library" ON SDL2MIXER_VORBIS_TREMOR OFF)
-cmake_dependent_option(SDL2MIXER_VORBIS_VORBISFILE_SHARED "Dynamically load vorbisfile library" ON SDL2MIXER_VORBIS_VORBISFILE OFF)
+ecwolf_dependent_option(SDL2MIXER_VORBIS_TREMOR_SHARED "Dynamically load tremor library" ON SDL2MIXER_VORBIS_TREMOR OFF)
+ecwolf_dependent_option(SDL2MIXER_VORBIS_VORBISFILE_SHARED "Dynamically load vorbisfile library" ON SDL2MIXER_VORBIS_VORBISFILE OFF)
 
-option(SDL2MIXER_WAVE "Enable streaming WAVE music" ON)
+set(SDL2MIXER_WAVE ON)
 
 if(SDL2MIXER_VORBIS_TREMOR OR SDL2MIXER_VORBIS_VORBISFILE OR SDL2MIXER_FLAC_LIBFLAC OR SDL2MIXER_OPUS)
     set(SDL2MIXER_OGG TRUE)
@@ -171,7 +191,12 @@ else()
     set(sdl2_target_name SDL2::SDL2-static)
 endif()
 
-sdl_find_sdl2(${sdl2_target_name} ${SDL_REQUIRED_VERSION})
+# ECWolf: See if we're handling the SDL2 target
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    sdl_find_sdl2(${sdl2_target_name} ${SDL_REQUIRED_VERSION})
+else()
+    set(sdl2_target_name SDL2::SDL2)
+endif()
 
 set(BUILD_SHARED_LIBS ${SDL2MIXER_BUILD_SHARED_LIBS})
 add_library(SDL2_mixer
@@ -492,22 +517,24 @@ endif()
 if(SDL2MIXER_FLAC_LIBFLAC)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_FLAC_LIBFLAC)
     if(SDL2MIXER_VENDORED)
+        # ECWolf: Use alternative FLAC build script
         # vendored libogg alread handled
-        if(NOT TARGET ogg)
-            message(FATAL_ERROR "ogg target not present")
-        endif()
-        set(BUILD_SHARED_LIBS "${SDL2MIXER_FLAC_LIBFLAC_SHARED}")
-        set(INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "Disable libflac installation")
-        set(WITH_OGG OFF CACHE BOOL "Disable finding ogg using `find_package` (we have vendored it)")
+        #if(NOT TARGET ogg)
+        #    message(FATAL_ERROR "ogg target not present")
+        #endif()
+        #set(BUILD_SHARED_LIBS "${SDL2MIXER_FLAC_LIBFLAC_SHARED}")
+        #set(INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "Disable libflac installation")
+        #set(WITH_OGG OFF CACHE BOOL "Disable finding ogg using `find_package` (we have vendored it)")
         message(STATUS "Using vendored libflac")
-        sdl_check_project_in_subfolder(external/flac libflac SDL2MIXER_VENDORED)
-        add_subdirectory(external/flac EXCLUDE_FROM_ALL)
-        if(SDL2MIXER_FLAC_LIBFLAC_SHARED)
-            list(APPEND INSTALL_EXTRA_TARGETS FLAC)
-        endif()
-        if(NOT SDL2MIXER_FLAC_LIBFLAC_SHARED)
+        #sdl_check_project_in_subfolder(external/flac libflac SDL2MIXER_VENDORED)
+        #add_subdirectory(external/flac EXCLUDE_FROM_ALL)
+        add_subdirectory(external EXCLUDE_FROM_ALL)
+        #if(SDL2MIXER_FLAC_LIBFLAC_SHARED)
+        #    list(APPEND INSTALL_EXTRA_TARGETS FLAC)
+        #endif()
+        #if(NOT SDL2MIXER_FLAC_LIBFLAC_SHARED)
             list(APPEND PC_LIBS -l$<TARGET_FILE_BASE_NAME:FLAC::FLAC> -l$<TARGET_FILE_BASE_NAME:ogg>)
-        endif()
+        #endif()
     else()
         message(STATUS "Using system libflac")
         find_package(FLAC REQUIRED)
@@ -877,4 +904,26 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.17")
     set_target_properties(SDL2::mixer PROPERTIES
         DEPRECATION "Use SDL2_mixer::SDL2_mixer or SDL2_mixer::SDL2_mixer-static instead"
     )
+endif()
+
+# ECWolf: Compat customizations
+if(MSVC_VERSION EQUAL 1400)
+    # Visual Studio 2005 compatibility for legacy builds
+    target_include_directories(SDL2_mixer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/vs2005compat)
+    target_compile_definitions(SDL2_mixer PRIVATE -Dinline=__inline)
+    target_compile_definitions(SDL2_mixer PRIVATE -D_USE_MATH_DEFINES)
+endif()
+
+get_target_property(SDL2_VERSION SDL2::SDL2 VERSION)
+if(SDL2_VERSION OR FORCE_SDL12)
+    if(SDL2_VERSION VERSION_LESS "2.0.6")
+        target_sources(SDL2_mixer PRIVATE src/sdl_resample/SDL_rwops.c)
+    endif()
+    if(SDL2_VERSION VERSION_LESS "2.0.7")
+        target_sources(SDL2_mixer PRIVATE
+            src/sdl_resample/SDL_audiocvt.c
+            src/sdl_resample/SDL_audiotypecvt.c
+            src/sdl_resample/SDL_dataqueue.c
+        )
+    endif()
 endif()

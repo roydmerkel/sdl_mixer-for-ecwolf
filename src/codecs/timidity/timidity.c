@@ -6,6 +6,8 @@
     it under the terms of the Perl Artistic License, available in COPYING.
 */
 
+#include "sdl_resample/compat.h"
+
 #include "SDL.h"
 #include "../../utils.h" /* for SDL_strtokr() */
 

@@ -18,11 +18,15 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "SDL_hints.h"
-#include "SDL_log.h"
-#include "SDL_timer.h"
+#include "sdl_resample/compat.h"
 
 #include "SDL_mixer.h"
+#if SDL_VERSION_ATLEAST(2,0,0)
+#include "SDL_hints.h"
+#include "SDL_log.h"
+#endif
+#include "SDL_timer.h"
+
 #include "mixer.h"
 #include "music.h"
 
@@ -44,9 +48,9 @@
 #include "utils.h"
 
 /* Check to make sure we are building with a new enough SDL */
-#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 7)
-#error You need SDL 2.0.7 or newer from http://www.libsdl.org
-#endif
+//#if SDL_COMPILEDVERSION < SDL_VERSIONNUM(2, 0, 7)
+//#error You need SDL 2.0.7 or newer from http://www.libsdl.org
+//#endif
 
 /* Set this hint to true if you want verbose logging of music interfaces */
 #define SDL_MIXER_HINT_DEBUG_MUSIC_INTERFACES \

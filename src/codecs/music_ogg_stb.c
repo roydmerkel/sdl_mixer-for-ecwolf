@@ -23,9 +23,13 @@
 
 /* This file supports Ogg Vorbis music streams using a modified stb_vorbis module */
 
+#include "sdl_resample/compat.h"
+
 #include "music_ogg.h"
 #include "utils.h"
+#if SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_assert.h"
+#endif
 
 #define STB_VORBIS_SDL 1 /* for SDL_mixer-specific stuff. */
 #define STB_VORBIS_NO_STDIO 1
@@ -38,6 +42,7 @@
 #endif
 #define STBV_CDECL SDLCALL /* for SDL_qsort */
 
+#if SDL_VERSION_ATLEAST(2,0,0)
 #ifdef assert
 #undef assert
 #endif
@@ -64,6 +69,7 @@
 #define sin(x) SDL_sin(x)
 #define log(x) SDL_log(x)
 #define exp(x) SDL_exp(x)
+#endif
 
 #include "stb_vorbis/stb_vorbis.h"
 
@@ -216,12 +222,12 @@ static void *OGG_CreateFromRW(SDL_RWops *src, int freesrc)
                 SDL_memmove(argument + 4, argument + 5, SDL_strlen(argument) - 4);
             }
 
-            if (SDL_strcasecmp(argument, "LOOPSTART") == 0)
+            if (SDL_strcasecmp(argument, "LOOPSTART") == 0 || SDL_strcasecmp(argument, "LOOP_START") == 0)
                 music->loop_start = _Mix_ParseTime(value, rate);
             else if (SDL_strcasecmp(argument, "LOOPLENGTH") == 0) {
                 music->loop_len = SDL_strtoll(value, NULL, 10);
                 is_loop_length = SDL_TRUE;
-            } else if (SDL_strcasecmp(argument, "LOOPEND") == 0) {
+            } else if (SDL_strcasecmp(argument, "LOOPEND") == 0 || SDL_strcasecmp(argument, "LOOP_END") == 0) {
                 music->loop_end = _Mix_ParseTime(value, rate);
                 is_loop_length = SDL_FALSE;
             } else if (SDL_strcasecmp(argument, "TITLE") == 0) {

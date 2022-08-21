@@ -24,8 +24,12 @@
 
 #ifdef MUSIC_FLAC_LIBFLAC
 
+#include "sdl_resample/compat.h"
+
 #include "SDL_loadso.h"
+#if SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_assert.h"
+#endif
 
 #include "music_flac.h"
 #include "utils.h"
@@ -413,12 +417,12 @@ static void flac_metadata_music_cb(
                 SDL_memmove(argument + 4, argument + 5, SDL_strlen(argument) - 4);
             }
 
-            if (SDL_strcasecmp(argument, "LOOPSTART") == 0)
+            if (SDL_strcasecmp(argument, "LOOPSTART") == 0 || SDL_strcasecmp(argument, "LOOP_START") == 0)
                 music->loop_start = _Mix_ParseTime(value, rate);
             else if (SDL_strcasecmp(argument, "LOOPLENGTH") == 0) {
                 music->loop_len = SDL_strtoll(value, NULL, 10);
                 is_loop_length = SDL_TRUE;
-            } else if (SDL_strcasecmp(argument, "LOOPEND") == 0) {
+            } else if (SDL_strcasecmp(argument, "LOOPEND") == 0 || SDL_strcasecmp(argument, "LOOP_END") == 0) {
                 music->loop_end = _Mix_ParseTime(value, rate);
                 is_loop_length = SDL_FALSE;
             } else if (SDL_strcasecmp(argument, "TITLE") == 0) {

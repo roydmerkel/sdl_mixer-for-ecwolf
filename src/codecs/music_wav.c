@@ -22,6 +22,7 @@
 #ifdef MUSIC_WAV
 
 /* This file supports streaming WAV files */
+#include "sdl_resample/compat.h"
 
 #include "music_wav.h"
 #include "mp3utils.h"

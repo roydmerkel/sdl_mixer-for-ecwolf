@@ -33,7 +33,9 @@
 
 #include "mp3utils.h"
 
+#if SDL_VERSION_ATLEAST(2,0,0)
 #include "SDL_log.h"
+#endif
 
 #ifdef ENABLE_ID3V2_TAG
 /*********************** SDL_RW WITH BOOKKEEPING ************************/
@@ -45,7 +47,12 @@ int MP3_RWinit(struct mp3file_t *fil, SDL_RWops *src) {
     fil->length = SDL_RWseek(src, 0, RW_SEEK_END) - fil->start;
     fil->pos = 0;
     if (fil->start < 0 || fil->length < 0) {
+#if SDL_VERSION_ATLEAST(2,0,0)
         return SDL_Error(SDL_EFSEEK);
+#else
+        SDL_Error(SDL_EFSEEK);
+        return -1;
+#endif
     }
     SDL_RWseek(src, fil->start, RW_SEEK_SET);
     return 0;
