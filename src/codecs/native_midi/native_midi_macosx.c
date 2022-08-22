@@ -104,12 +104,20 @@ GetSequenceAudioUnitMatching(MusicSequence sequence, AudioUnit *aunit,
 
     for (i = 0; i < nodecount; i++) {
         AUNode node;
+#ifndef __ppc__
         AudioComponentDescription desc;
+#else
+        ComponentDescription desc;
+#endif
 
         if (AUGraphGetIndNode(graph, i, &node) != noErr)
             continue;  /* better luck next time. */
 
+#ifndef __ppc__
         if (AUGraphNodeInfo(graph, node, &desc, aunit) != noErr)
+#else
+        if (AUGraphGetNodeInfo(graph, node, &desc, NULL, NULL, aunit) != noErr)
+#endif
             continue;
         else if (desc.componentType != type)
             continue;
