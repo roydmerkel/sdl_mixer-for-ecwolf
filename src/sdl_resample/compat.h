@@ -2,6 +2,12 @@
 // Selectively back-port features to old SDL
 
 #include <SDL.h>
+#include <stdlib.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1700
+#define strtoll _strtoi64
+#endif
+
 
 #if !SDL_VERSION_ATLEAST(2,0,0)
 // SDL 1.2 support is a bit of a hack since we need to ignore a lot of features
@@ -95,9 +101,11 @@ int Mix_BuildAudioCVT(SDL_AudioCVT * cvt, SDL_AudioFormat src_fmt, Uint8 src_cha
 #if !SDL_VERSION_ATLEAST(2,0,10)
 static Sint64 SDL_RWsize(SDL_RWops *context)
 {
-    Sint64 cur = SDL_RWtell(context);
+    Sint64 cur, size;
+
+    cur = SDL_RWtell(context);
     SDL_RWseek(context, 0, RW_SEEK_END);
-    Sint64 size = SDL_RWtell(context);
+    size = SDL_RWtell(context);
     SDL_RWseek(context, cur, RW_SEEK_SET);
     return size;
 }

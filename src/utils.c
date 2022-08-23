@@ -20,6 +20,7 @@
 */
 
 /* misc helper routines */
+#include "sdl_resample/compat.h"
 
 #include "utils.h"
 #include <stddef.h>
