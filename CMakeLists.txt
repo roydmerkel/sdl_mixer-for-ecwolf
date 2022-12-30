@@ -92,14 +92,14 @@ set(SDL2MIXER_CMD OFF)
 set(SDL2MIXER_FLAC ON)
 
 ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC "Enable FLAC music using libFLAC" ON SDL2MIXER_FLAC OFF)
-ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC_SHARED "Dynamically load LIBFLAC" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_FLAC_LIBFLAC OFF)
+ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC_SHARED "Dynamically load LIBFLAC" "${SDL2MIXER_DEPS_SHARED}" "SDL2MIXER_FLAC_LIBFLAC;NOT INTERNAL_SDL_MIXER_CODECS" OFF)
 
 ecwolf_dependent_option(SDL2MIXER_FLAC_DRFLAC "Enable FLAC music using drflac" ON SDL2MIXER_FLAC OFF)
 
 set(SDL2MIXER_MOD ON)
 
 ecwolf_dependent_option(SDL2MIXER_MOD_MODPLUG "Support loading MOD music via modplug" ON SDL2MIXER_MOD OFF)
-ecwolf_dependent_option(SDL2MIXER_MOD_MODPLUG_SHARED "Dynamically load modplug" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MOD_MODPLUG OFF)
+ecwolf_dependent_option(SDL2MIXER_MOD_MODPLUG_SHARED "Dynamically load modplug" "${SDL2MIXER_DEPS_SHARED}" "SDL2MIXER_MOD_MODPLUG;NOT INTERNAL_SDL_MIXER_CODECS" OFF)
 
 ecwolf_dependent_option(SDL2MIXER_MOD_XMP "Support loading MOD music via libxmp" OFF SDL2MIXER_MOD OFF)
 ecwolf_dependent_option(SDL2MIXER_MOD_XMP_LITE "Use libxmp-lite instead of libxmp" OFF SDL2MIXER_MOD_XMP OFF)
@@ -138,7 +138,7 @@ if(SDL2MIXER_MIDI AND NOT (SDL2MIXER_MIDI_TIMIDITY OR SDL2MIXER_MIDI_NATIVE OR S
 endif()
 
 set(SDL2MIXER_OPUS ON)
-ecwolf_dependent_option(SDL2MIXER_OPUS_SHARED "Dynamically load libopus" ON SDL2MIXER_OPUS OFF)
+ecwolf_dependent_option(SDL2MIXER_OPUS_SHARED "Dynamically load libopus" ON "SDL2MIXER_OPUS;NOT INTERNAL_SDL_MIXER_CODECS" OFF)
 
 set(sdl2mixer_vorbis_strings STB TREMOR VORBISFILE)
 set(SDL2MIXER_VORBIS "STB")
