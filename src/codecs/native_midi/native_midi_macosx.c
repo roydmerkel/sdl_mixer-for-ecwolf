@@ -36,7 +36,7 @@
 #include "../../mixer.h"
 #include "native_midi.h"
 
-#ifndef __MAC_10_5
+#ifndef MAC_OS_X_VERSION_10_5
 enum { kMusicDeviceProperty_SoundBankURL = 1100 };
 #endif
 
@@ -108,7 +108,7 @@ GetSequenceAudioUnitMatching(MusicSequence sequence, AudioUnit *aunit,
 
     for (i = 0; i < nodecount; i++) {
         AUNode node;
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#ifdef MAC_OS_X_VERSION_10_6
         AudioComponentDescription desc;
 #else
          /* AUGraphAddNode () is changed to take an AudioComponentDescription*
