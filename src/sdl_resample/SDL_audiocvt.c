@@ -646,7 +646,7 @@ SDL_BuildAudioTypeCVTToFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat src_fmt)
 {
     int retval = 0;  /* 0 == no conversion necessary. */
 
-    if ((SDL_AUDIO_ISBIGENDIAN(src_fmt) != 0) == (SDL_BYTEORDER == SDL_LIL_ENDIAN)) {
+    if ((SDL_AUDIO_ISBIGENDIAN(src_fmt) != 0) == (SDL_BYTEORDER == SDL_LIL_ENDIAN) && SDL_AUDIO_BITSIZE(src_fmt) > 8) {
         if (SDL_AddAudioCVTFilter(cvt, SDL_Convert_Byteswap) < 0) {
             return -1;
         }

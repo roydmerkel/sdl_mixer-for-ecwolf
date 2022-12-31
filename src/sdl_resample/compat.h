@@ -59,6 +59,17 @@ static void SDL_AtomicSet(int* ptr, int value)
 {
     *ptr = value;
 }
+
+static Sint64 SDL_RWsize(SDL_RWops *context)
+{
+    Sint64 cur, size;
+
+    cur = SDL_RWtell(context);
+    SDL_RWseek(context, 0, RW_SEEK_END);
+    size = SDL_RWtell(context);
+    SDL_RWseek(context, cur, RW_SEEK_SET);
+    return size;
+}
 #endif
 
 #if !SDL_VERSION_ATLEAST(2,0,5)
@@ -82,10 +93,16 @@ static SDL_bool SDL_GetHintBoolean(const char* name, SDL_bool default_value) {
 #if !SDL_VERSION_ATLEAST(2,0,7)
 #include "SDL_audiocvt.h"
 
+int Mix_ConvertAudio(SDL_AudioCVT * cvt);
 int Mix_BuildAudioCVT(SDL_AudioCVT * cvt, SDL_AudioFormat src_fmt, Uint8 src_channels, int src_rate, SDL_AudioFormat dst_fmt, Uint8 dst_channels, int dst_rate);
 
 // Use newer resampler even though this function is nominally available
+#define SDL_ConvertAudio Mix_ConvertAudio
 #define SDL_BuildAudioCVT Mix_BuildAudioCVT
+#endif
+
+#if !SDL_VERSION_ATLEAST(2,0,9)
+#define SDL_exp exp
 #endif
 
 #ifndef SDL_MIN_SINT16
@@ -96,17 +113,4 @@ int Mix_BuildAudioCVT(SDL_AudioCVT * cvt, SDL_AudioFormat src_fmt, Uint8 src_cha
 #endif
 #ifndef SDL_MAX_UINT64
 #define SDL_MAX_UINT64 0xFFFFFFFFFFFFFFFFu
-#endif
-
-#if !SDL_VERSION_ATLEAST(2,0,10)
-static Sint64 SDL_RWsize(SDL_RWops *context)
-{
-    Sint64 cur, size;
-
-    cur = SDL_RWtell(context);
-    SDL_RWseek(context, 0, RW_SEEK_END);
-    size = SDL_RWtell(context);
-    SDL_RWseek(context, cur, RW_SEEK_SET);
-    return size;
-}
 #endif

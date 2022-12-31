@@ -36,6 +36,10 @@
 #include "../../mixer.h"
 #include "native_midi.h"
 
+#ifndef __MAC_10_5
+enum { kMusicDeviceProperty_SoundBankURL = 1100 };
+#endif
+
 /* Native Midi song */
 struct _NativeMidiSong
 {
@@ -104,16 +108,21 @@ GetSequenceAudioUnitMatching(MusicSequence sequence, AudioUnit *aunit,
 
     for (i = 0; i < nodecount; i++) {
         AUNode node;
-#ifndef __ppc__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
         AudioComponentDescription desc;
 #else
+         /* AUGraphAddNode () is changed to take an AudioComponentDescription*
+          * desc parameter instead of a ComponentDescription* in the 10.6 SDK.
+          * AudioComponentDescription is in 10.6 or newer, but it is actually
+          * the same as struct ComponentDescription with 20 bytes of size and
+          * the same offsets of all members, therefore, is binary compatible. */
         ComponentDescription desc;
 #endif
 
         if (AUGraphGetIndNode(graph, i, &node) != noErr)
             continue;  /* better luck next time. */
 
-#ifndef __ppc__
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
         if (AUGraphNodeInfo(graph, node, &desc, aunit) != noErr)
 #else
         if (AUGraphGetNodeInfo(graph, node, &desc, NULL, NULL, aunit) != noErr)
@@ -244,8 +253,23 @@ NativeMidiSong *native_midi_loadsong_RW(SDL_RWops *src, int freesrc)
     SDL_free(buf);
     buf = NULL;
 
+    #if MAC_OS_X_VERSION_MIN_REQUIRED < 1050
+    /* MusicSequenceLoadSMFData() (avail. in 10.2, no 64 bit) is
+     * equivalent to calling MusicSequenceLoadSMFDataWithFlags()
+     * with a flags value of 0 (avail. in 10.3, avail. 64 bit).
+     * So, we use MusicSequenceLoadSMFData() for powerpc versions
+     * but the *WithFlags() on intel which require 10.4 anyway. */
+    # if defined(__ppc__) || defined(__POWERPC__)
+    if (MusicSequenceLoadSMFData(retval->sequence, data) != noErr)
+        goto fail;
+    # else
+    if (MusicSequenceLoadSMFDataWithFlags(retval->sequence, data, 0) != noErr)
+        goto fail;
+    # endif
+    #else  /* MusicSequenceFileLoadData() requires 10.5 or later.  */
     if (MusicSequenceFileLoadData(retval->sequence, data, 0, 0) != noErr)
         goto fail;
+    #endif
 
     CFRelease(data);
     data = NULL;
