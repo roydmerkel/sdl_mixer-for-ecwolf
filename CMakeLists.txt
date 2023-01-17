@@ -130,8 +130,11 @@ if(WIN32 OR APPLE OR HAIKU)
 else()
     set(SDL2MIXER_MIDI_NATIVE OFF)
     # ECWolf vendoring - enable dynamic fluidsynth
-    set(SDL2MIXER_MIDI_FLUIDSYNTH ON)
-    set(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED ON)
+    find_package(FluidSynth)
+    if(FluidSynth_FOUND)
+        set(SDL2MIXER_MIDI_FLUIDSYNTH ON)
+        set(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED ON)
+    endif()
 endif()
 
 ecwolf_dependent_option(SDL2MIXER_MIDI_TIMIDITY "Support timidity MIDI output" ON SDL2MIXER_MIDI OFF)

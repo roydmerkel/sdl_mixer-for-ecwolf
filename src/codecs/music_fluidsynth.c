@@ -82,7 +82,7 @@ static int FLUIDSYNTH_Load()
 #ifdef __LINUX__
         const char* sonames[] = {FLUIDSYNTH_DYNAMIC, "libfluidsynth.so.3", "libfluidsynth.so.2", "libfluidsynth.so.1", NULL};
         for(const char** soname = sonames; *soname; ++soname) {
-            if (fluidsynth.handle = SDL_LoadObject(*soname))
+            if ((fluidsynth.handle = SDL_LoadObject(*soname)))
                 break;
         }
         if (fluidsynth.handle == NULL) {
