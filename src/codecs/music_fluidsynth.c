@@ -79,10 +79,21 @@ static int FLUIDSYNTH_Load()
 {
     if (fluidsynth.loaded == 0) {
 #ifdef FLUIDSYNTH_DYNAMIC
+#ifdef __LINUX__
+        const char* sonames[] = {FLUIDSYNTH_DYNAMIC, "libfluidsynth.so.3", "libfluidsynth.so.2", "libfluidsynth.so.1", NULL};
+        for(const char** soname = sonames; *soname; ++soname) {
+            if (fluidsynth.handle = SDL_LoadObject(*soname))
+                break;
+        }
+        if (fluidsynth.handle == NULL) {
+            return -1;
+        }
+#else
         fluidsynth.handle = SDL_LoadObject(FLUIDSYNTH_DYNAMIC);
         if (fluidsynth.handle == NULL) {
             return -1;
         }
+#endif
 #endif
 #if (FLUIDSYNTH_VERSION_MAJOR >= 2)
         FUNCTION_LOADER(delete_fluid_player, void (*)(fluid_player_t*))

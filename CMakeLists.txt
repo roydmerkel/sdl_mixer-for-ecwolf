@@ -123,12 +123,15 @@ endif()
 set(SDL2MIXER_MIDI ON)
 
 ecwolf_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH "Support FluidSynth MIDI output" ON "SDL2MIXER_MIDI;NOT SDL2MIXER_VENDORED" OFF)
-ecwolf_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED "Dynamically load libfluidsynth" "${SDL2MIXER_DEPS_SHARED}" SDL2MIXER_MIDI_FLUIDSYNTH OFF)
+ecwolf_dependent_option(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED "Dynamically load libfluidsynth" ON SDL2MIXER_MIDI_FLUIDSYNTH OFF)
 
 if(WIN32 OR APPLE OR HAIKU)
     ecwolf_dependent_option(SDL2MIXER_MIDI_NATIVE "Support native MIDI output" ON SDL2MIXER_MIDI OFF)
 else()
     set(SDL2MIXER_MIDI_NATIVE OFF)
+    # ECWolf vendoring - enable dynamic fluidsynth
+    set(SDL2MIXER_MIDI_FLUIDSYNTH ON)
+    set(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED ON)
 endif()
 
 ecwolf_dependent_option(SDL2MIXER_MIDI_TIMIDITY "Support timidity MIDI output" ON SDL2MIXER_MIDI OFF)
@@ -694,30 +697,33 @@ endif()
 
 if(SDL2MIXER_MIDI_FLUIDSYNTH)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_MID_FLUIDSYNTH)
-    if(SDL2MIXER_VENDORED)
-        message(STATUS "Using vendored FluidSynth")
-        message(FATAL_ERROR "FluidSynth is not vendored.")
-    else()
+    # ECWolf: We want to dynamically load fluidsynth even if vendoring everything else
+    #if(SDL2MIXER_VENDORED)
+    #    message(STATUS "Using vendored FluidSynth")
+    #    message(FATAL_ERROR "FluidSynth is not vendored.")
+    #else()
         message(STATUS "Using system FluidSynth")
-        find_package(FluidSynth REQUIRED)
+        find_package(FluidSynth)
         if(NOT SDL2MIXER_MIDI_FLUIDSYNTH_SHARED)
             list(APPEND PC_REQUIRES fluidsynth)
         endif()
-    endif()
-    if(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED)
-        target_include_directories(SDL2_mixer PRIVATE
-            $<TARGET_PROPERTY:FluidSynth::FluidSynth,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
-        )
-        target_get_dynamic_library(dynamic_fluidsynth FluidSynth::FluidSynth)
-        message(STATUS "Dynamic fluidsynth: ${dynamic_fluidsynth}")
-        target_compile_definitions(SDL2_mixer PRIVATE "FLUIDSYNTH_DYNAMIC=\"${dynamic_fluidsynth}\"")
-        if(SDL2MIXER_VENDORED)
-            add_dependencies(SDL2_mixer FluidSynth::FluidSynth)
+    #endif()
+    if(FluidSynth_FOUND)
+        if(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED)
+            target_include_directories(SDL2_mixer PRIVATE
+                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+            )
+            target_get_dynamic_library(dynamic_fluidsynth FluidSynth::FluidSynth)
+            message(STATUS "Dynamic fluidsynth: ${dynamic_fluidsynth}")
+            target_compile_definitions(SDL2_mixer PRIVATE "FLUIDSYNTH_DYNAMIC=\"${dynamic_fluidsynth}\"")
+            if(SDL2MIXER_VENDORED)
+                add_dependencies(SDL2_mixer FluidSynth::FluidSynth)
+            endif()
+        else()
+            target_link_libraries(SDL2_mixer PRIVATE FluidSynth::FluidSynth)
         endif()
-    else()
-        target_link_libraries(SDL2_mixer PRIVATE FluidSynth::FluidSynth)
     endif()
 endif()
 
