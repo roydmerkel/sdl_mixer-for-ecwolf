@@ -1,6 +1,6 @@
 /*
   SDL_mixer:  An audio mixer library based on the SDL library
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -86,6 +86,9 @@ static int MODPLUG_Load(void)
         FUNCTION_LOADER(ModPlug_GetName, const char* (*)(ModPlugFile* file))
 #ifdef MODPLUG_DYNAMIC
         modplug.ModPlug_Tell = (int (*)(ModPlugFile* file)) SDL_LoadFunction(modplug.handle, "ModPlug_Tell");
+        if (modplug.ModPlug_Tell == NULL) {
+            SDL_ClearError();   /* ModPlug_Tell is optional. */
+        }
 #elif defined(MODPLUG_HAS_TELL)
         modplug.ModPlug_Tell = ModPlug_Tell;
 #else
@@ -366,6 +369,8 @@ Mix_MusicInterface Mix_MusicInterface_MODPLUG =
     NULL,   /* LoopEnd */
     NULL,   /* LoopLength */
     MODPLUG_GetMetaTag,
+    NULL,   /* GetNumTracks */
+    NULL,   /* StartTrack */
     NULL,   /* Pause */
     NULL,   /* Resume */
     MODPLUG_Stop,

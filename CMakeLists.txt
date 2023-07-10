@@ -5,12 +5,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # See docs/release_checklist.md
 set(MAJOR_VERSION 2)
-set(MINOR_VERSION 6)
-set(MICRO_VERSION 2)
+set(MINOR_VERSION 7)
+set(MICRO_VERSION 0)
 set(SDL_REQUIRED_VERSION 2.0.9)
-
-# For historical reasons this is 3.0.0 rather than the expected 1.0.0
-set(DYLIB_COMPATIBILITY_VERSION "3.0.0")
 
 macro(ecwolf_dependent_option _NAME _DESC _DEFLT _DEPTEST _FAILDFLT)
   # ECWolf: vendoring. Modified version of cmake_dependent_option source.
@@ -43,6 +40,17 @@ project(SDL2_mixer
 
 message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(SDL2MIXER_ROOTPROJECT ON)
+else()
+    set(SDL2MIXER_ROOTPROJECT OFF)
+endif()
+
+set(SDL2MIXER_SAMPLES_DEFAULT ${SDL2MIXER_ROOTPROJECT})
+if(ANDROID)
+    set(SDL2MIXER_SAMPLES_DEFAULT OFF)
+endif()
+
 if(POLICY CMP0112)
     # Target file component generator expressions do not add target dependencies.
     cmake_policy(SET CMP0112 NEW)
@@ -53,19 +61,39 @@ set(SDL2MIXER_DEBUG_POSTFIX "d"
     CACHE STRING "Name suffix for debug builds")
 mark_as_advanced(SDL2MIXER_DEBUG_POSTFIX)
 
+if(POLICY CMP0099)
+    # Make `INTERFACE_LINK_DIRECTORIES` a transitive usage requirement.
+    # This is needed for static dependencies which have transitive dependencies
+    # outside of compiler default search paths.
+    cmake_policy(SET CMP0099 NEW)
+endif()
+
 # Assume MSVC projects don't have a package manager and need vendored dependencies (by default).
 # Most other platforms have some kind of package manager.
 # FIXME: consider a package manager such as conan/vcpkg instead of vendoring
-if(MSVC)
+if(ANDROID OR MSVC)
     set(vendored_default ON)
 else()
     set(vendored_default OFF)
 endif()
 
+set(sdl2mixer_install_enableable ON)
+if ((TARGET SDL2 OR TARGET SDL2-static) AND SDL2_DISABLE_INSTALL)
+    # Cannot install SDL2_mixer when SDL2 is built in same built, and is not installed.
+    set(sdl2mixer_install_enableable OFF)
+endif()
+
+if(NOT DEFINED CMAKE_FIND_PACKAGE_PREFER_CONFIG)
+    set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+endif()
+
+include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CMakeDependentOption)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
+
+include(PkgConfigHelper)
 
 # ECWolf: Set these options for vendoring
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -95,6 +123,9 @@ ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC "Enable FLAC music using libFLAC"
 ecwolf_dependent_option(SDL2MIXER_FLAC_LIBFLAC_SHARED "Dynamically load LIBFLAC" "${SDL2MIXER_DEPS_SHARED}" "SDL2MIXER_FLAC_LIBFLAC;NOT INTERNAL_SDL_MIXER_CODECS" OFF)
 
 ecwolf_dependent_option(SDL2MIXER_FLAC_DRFLAC "Enable FLAC music using drflac" ON SDL2MIXER_FLAC OFF)
+
+set(SDL2MIXER_GME OFF)
+set(SDL2MIXER_GME_SHARED OFF)
 
 set(SDL2MIXER_MOD ON)
 
@@ -171,6 +202,9 @@ ecwolf_dependent_option(SDL2MIXER_VORBIS_VORBISFILE_SHARED "Dynamically load vor
 
 set(SDL2MIXER_WAVE ON)
 
+set(SDL2MIXER_WAVPACK OFF)
+ecwolf_dependent_option(SDL2MIXER_WAVPACK_SHARED "Dynamically load WavPack library" ON SDL2MIXER_WAVPACK OFF)
+
 if(SDL2MIXER_VORBIS_TREMOR OR SDL2MIXER_VORBIS_VORBISFILE OR SDL2MIXER_FLAC_LIBFLAC OR SDL2MIXER_OPUS)
     set(SDL2MIXER_OGG TRUE)
     set(SDL2MIXER_OGG_install FALSE)
@@ -214,6 +248,7 @@ add_library(SDL2_mixer
     src/codecs/music_drmp3.c
     src/codecs/music_flac.c
     src/codecs/music_fluidsynth.c
+    src/codecs/music_gme.c
     src/codecs/music_modplug.c
     src/codecs/music_mpg123.c
     src/codecs/music_nativemidi.c
@@ -222,6 +257,7 @@ add_library(SDL2_mixer
     src/codecs/music_opus.c
     src/codecs/music_timidity.c
     src/codecs/music_wav.c
+    src/codecs/music_wavpack.c
     src/codecs/music_xmp.c
     src/effect_position.c
     src/effect_stereoreverse.c
@@ -253,7 +289,6 @@ if(WIN32 AND BUILD_SHARED_LIBS)
 endif()
 set_target_properties(SDL2_mixer PROPERTIES
     DEFINE_SYMBOL DLL_EXPORT
-    PUBLIC_HEADER "include/SDL_mixer.h"
     EXPORT_NAME ${sdl2_mixer_export_name}
     C_VISIBILITY_PRESET "hidden"
 )
@@ -313,6 +348,10 @@ if(SDL2MIXER_BUILD_SHARED_LIBS)
 endif()
 
 if(SDL2MIXER_BUILD_SHARED_LIBS)
+    sdl_target_link_options_no_undefined(SDL2_mixer)
+endif()
+
+if(SDL2MIXER_BUILD_SHARED_LIBS)
     # Make sure static library dependencies are built with -fPIC when building a shared SDL2_mixer
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
@@ -325,21 +364,21 @@ if(SDL2MIXER_CMD)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_CMD)
     set(fork_found OFF)
     if(NOT fork_found)
-        check_symbol_exists(fork sys/unistd.h HAVE_FORK)
+        check_symbol_exists(fork unistd.h HAVE_FORK)
         if(HAVE_FORK)
             set(fork_found ON)
             target_compile_definitions(SDL2_mixer PRIVATE HAVE_FORK)
         endif()
     endif()
     if(NOT fork_found)
-        check_symbol_exists(fork sys/unistd.h HAVE_VFORK)
+        check_symbol_exists(vfork unistd.h HAVE_VFORK)
         if(HAVE_VFORK)
             set(fork_found ON)
             target_compile_definitions(SDL2_mixer PRIVATE HAVE_VFORK)
         endif()
     endif()
     if(NOT fork_found)
-        message(FATAL_ERROR "Neither fork() or vfork() or available on this platform. Reconfigure with -DSDL2MIXER_CMD=OFF.")
+        message(FATAL_ERROR "Neither fork() nor vfork() or available on this platform. Reconfigure with -DSDL2MIXER_CMD=OFF.")
     endif()
 endif()
 
@@ -349,6 +388,7 @@ if(SDL2MIXER_OGG)
         message(STATUS "Using vendored libogg")
         set(BUILD_SHARED_LIBS ${SDL2MIXER_OGG_SHARED})
         set(INSTALL_CMAKE_PACKAGE_MODULE FALSE CACHE BOOL "Don't install cmake module for libogg")
+        set(BUILD_TESTING OFF CACHE BOOL "Build tests")
         sdl_check_project_in_subfolder(external/ogg ogg SDL2MIXER_VENDORED)
         add_subdirectory(external/ogg EXCLUDE_FROM_ALL)
         if(SDL2MIXER_OGG_install)
@@ -366,10 +406,12 @@ if(SDL2MIXER_OPUS)
         endif()
         message(STATUS "Using vendored opus")
         set(BUILD_SHARED_LIBS ${SDL2MIXER_OPUS_SHARED})
+        set(BUILD_PROGRAMS OFF CACHE BOOL "Build programs")
         sdl_check_project_in_subfolder(external/opus opus SDL2MIXER_VENDORED)
         add_subdirectory(external/opus EXCLUDE_FROM_ALL)
 
         set(OP_DISABLE_DOCS TRUE CACHE BOOL "Disable opusfile documentation")
+        set(OP_DISABLE_EXAMPLES TRUE CACHE BOOL "Disable opusfile examples")
         set(OP_DISABLE_HTTP TRUE CACHE BOOL "Disable opusfile HTTP SUPPORT")
         message(STATUS "Using vendored opusfile")
         set(BUILD_SHARED_LIBS ${SDL2MIXER_OPUS_SHARED})
@@ -386,8 +428,8 @@ if(SDL2MIXER_OPUS)
         )
         target_include_directories(SDL2_mixer PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
-        if(NOT TARGET opusfile::opusfile)
-            add_library(opusfile::opusfile ALIAS opusfile)
+        if(NOT TARGET OpusFile::opusfile)
+            add_library(OpusFile::opusfile ALIAS opusfile)
         endif()
         if(SDL2MIXER_OPUS_SHARED OR NOT SDL2MIXER_BUILD_SHARED_LIBS)
             list(APPEND INSTALL_EXTRA_TARGETS opus opusfile)
@@ -397,25 +439,25 @@ if(SDL2MIXER_OPUS)
         endif()
     else()
         message(STATUS "Using system opusfile")
-        find_package(opusfile REQUIRED)
+        find_package(OpusFile REQUIRED)
         if(NOT SDL2MIXER_OPUS_SHARED)
             list(APPEND PC_REQUIRES opusfile)
         endif()
     endif()
     if(SDL2MIXER_OPUS_SHARED)
         target_include_directories(SDL2_mixer PRIVATE
-            $<TARGET_PROPERTY:opusfile::opusfile,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:opusfile::opusfile,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:opusfile::opusfile,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:OpusFile::opusfile,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:OpusFile::opusfile,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:OpusFile::opusfile,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
         )
-        target_get_dynamic_library(dynamic_opusfile opusfile::opusfile)
+        target_get_dynamic_library(dynamic_opusfile OpusFile::opusfile)
         message(STATUS "Dynamic opus (opusfile): ${dynamic_opusfile}")
         target_compile_definitions(SDL2_mixer PRIVATE "OPUS_DYNAMIC=\"${dynamic_opusfile}\"")
         if(SDL2MIXER_VENDORED)
-            add_dependencies(SDL2_mixer opusfile::opusfile)
+            add_dependencies(SDL2_mixer OpusFile::opusfile)
         endif()
     else()
-        target_link_libraries(SDL2_mixer PRIVATE opusfile::opusfile)
+        target_link_libraries(SDL2_mixer PRIVATE OpusFile::opusfile)
     endif()
 endif()
 
@@ -487,8 +529,8 @@ if(SDL2MIXER_VORBIS_VORBISFILE)
         set(BUILD_SHARED_LIBS ${SDL2MIXER_VORBIS_VORBISFILE_SHARED})
         sdl_check_project_in_subfolder(external/vorbis vorbisfile SDL2MIXER_VENDORED)
         add_subdirectory(external/vorbis EXCLUDE_FROM_ALL)
-        if(NOT TARGET vorbisfile::vorbisfile)
-            add_library(vorbisfile::vorbisfile ALIAS vorbisfile)
+        if(NOT TARGET Vorbis::vorbisfile)
+            add_library(Vorbis::vorbisfile ALIAS vorbisfile)
         endif()
         if(SDL2MIXER_VORBIS_VORBISFILE_SHARED OR NOT SDL2MIXER_BUILD_SHARED_LIBS)
             list(APPEND INSTALL_EXTRA_TARGETS vorbis vorbisfile)
@@ -498,25 +540,25 @@ if(SDL2MIXER_VORBIS_VORBISFILE)
         endif()
     else()
         message(STATUS "Using system vorbisfile")
-        find_package(vorbisfile REQUIRED)
+        find_package(Vorbis REQUIRED)
         if(NOT SDL2MIXER_VORBIS_VORBISFILE_SHARED)
             list(APPEND PC_REQUIRES vorbisfile)
         endif()
     endif()
     if(SDL2MIXER_VORBIS_VORBISFILE_SHARED)
         target_include_directories(SDL2_mixer PRIVATE
-            $<TARGET_PROPERTY:vorbisfile::vorbisfile,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:vorbisfile::vorbisfile,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:vorbisfile::vorbisfile,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:Vorbis::vorbisfile,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:Vorbis::vorbisfile,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:Vorbis::vorbisfile,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
         )
-        target_get_dynamic_library(dynamic_vorbisfile vorbisfile::vorbisfile)
+        target_get_dynamic_library(dynamic_vorbisfile Vorbis::vorbisfile)
         message(STATUS "Dynamic vorbisfile: ${dynamic_vorbisfile}")
         target_compile_definitions(SDL2_mixer PRIVATE "OGG_DYNAMIC=\"${dynamic_vorbisfile}\"")
         if(SDL2MIXER_VENDORED)
-            add_dependencies(SDL2_mixer vorbisfile::vorbisfile)
+            add_dependencies(SDL2_mixer Vorbis::vorbisfile)
         endif()
     else()
-        target_link_libraries(SDL2_mixer PRIVATE vorbisfile::vorbisfile)
+        target_link_libraries(SDL2_mixer PRIVATE Vorbis::vorbisfile)
     endif()
 endif()
 
@@ -524,13 +566,18 @@ if(SDL2MIXER_FLAC_LIBFLAC)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_FLAC_LIBFLAC)
     if(SDL2MIXER_VENDORED)
         # ECWolf: Use alternative FLAC build script
-        # vendored libogg alread handled
+        # vendored libogg already handled
         #if(NOT TARGET ogg)
         #    message(FATAL_ERROR "ogg target not present")
         #endif()
         #set(BUILD_SHARED_LIBS "${SDL2MIXER_FLAC_LIBFLAC_SHARED}")
         #set(INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "Disable libflac installation")
         #set(WITH_OGG OFF CACHE BOOL "Disable finding ogg using `find_package` (we have vendored it)")
+        #set(BUILD_CXXLIBS OFF CACHE BOOL "Build FLAC++")
+        #set(BUILD_EXAMPLES OFF CACHE BOOL "Build FLAC examples")
+        #set(BUILD_PROGRAMS OFF CACHE BOOL "Build programs")
+        #set(BUILD_TESTING OFF CACHE BOOL "Build tests")
+        #set(INSTALL_MANPAGES OFF CACHE BOOL "Install FLAC manpages")
         message(STATUS "Using vendored libflac")
         #sdl_check_project_in_subfolder(external/flac libflac SDL2MIXER_VENDORED)
         #add_subdirectory(external/flac EXCLUDE_FROM_ALL)
@@ -561,12 +608,53 @@ if(SDL2MIXER_FLAC_LIBFLAC)
             add_dependencies(SDL2_mixer FLAC)
         endif()
     else()
-        target_link_libraries(SDL2_mixer PRIVATE FLAC)
+        target_link_libraries(SDL2_mixer PRIVATE FLAC::FLAC)
     endif()
 endif()
 
 if(SDL2MIXER_FLAC_DRFLAC)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_FLAC_DRFLAC)
+endif()
+
+if(SDL2MIXER_GME)
+    target_compile_definitions(SDL2_mixer PRIVATE MUSIC_GME)
+    if(SDL2MIXER_VENDORED)
+        set(BUILD_SHARED_LIBS "${SDL2MIXER_GME_SHARED}")
+        set(ENABLE_UBSAN OFF CACHE BOOL "UB sanitizer")
+        set(BUILD_FRAMEWORK OFF CACHE BOOL "macos framework")
+        set(GME_ZLIB OFF CACHE BOOL "GME supports compressed formats")
+        message(STATUS "Using vendored libgme")
+        sdl_check_project_in_subfolder(external/libgme libgme SDL2MIXER_VENDORED)
+        add_subdirectory(external/libgme EXCLUDE_FROM_ALL)
+        add_library(gme::gme ALIAS gme)
+        if(SDL2MIXER_GME_SHARED)
+            list(APPEND INSTALL_EXTRA_TARGETS gme)
+        endif()
+        if(NOT SDL2MIXER_GME_SHARED)
+            list(APPEND PC_LIBS -l$<TARGET_FILE_BASE_NAME:gme>)
+        endif()
+    else()
+        message(STATUS "Using system libgme")
+        find_package(gme REQUIRED)
+        if(NOT SDL2MIXER_GME_SHARED)
+            list(APPEND PC_REQUIRES libgme)
+        endif()
+    endif()
+    if(SDL2MIXER_GME_SHARED)
+        target_include_directories(SDL2_mixer PRIVATE
+            $<TARGET_PROPERTY:gme::gme,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:gme::gme,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:gme::gme,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+        )
+        target_get_dynamic_library(dynamic_gme gme::gme)
+        message(STATUS "Dynamic libgme: ${dynamic_gme}")
+        target_compile_definitions(SDL2_mixer PRIVATE "GME_DYNAMIC=\"${dynamic_gme}\"")
+        if(SDL2MIXER_VENDORED)
+            add_dependencies(SDL2_mixer gme::gme)
+        endif()
+    else()
+        target_link_libraries(SDL2_mixer PRIVATE gme::gme)
+    endif()
 endif()
 
 if(SDL2MIXER_MOD_MODPLUG)
@@ -616,24 +704,42 @@ endif()
 if(SDL2MIXER_MOD_XMP)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_MOD_XMP)
     if(SDL2MIXER_VENDORED)
-        message(STATUS "Using vendored libxmp/libxmp-lite")
-        message(WARNING "Neither libxmp or libxmp-lite are vendored. Using system libxmp instead.")
-    endif()
-    if(SDL2MIXER_MOD_XMP_LITE)
-        message(STATUS "Using system libxmp-lite")
-        find_package(libxmp-lite REQUIRED)
-        set(tgt_xmp libxmp-lite::libxmp-lite)
-        set(xmp_name libxmp-lite)
+        message(STATUS "Using vendored libxmp")
+        sdl_check_project_in_subfolder(external/libxmp libxmp SDL2MIXER_VENDORED)
+        if(SDL2MIXER_MOD_XMP_SHARED)
+            set(BUILD_STATIC OFF)
+            set(BUILD_SHARED ON)
+            set(tgt_xmp xmp_shared)
+        else()
+            set(BUILD_STATIC ON)
+            set(BUILD_SHARED OFF)
+            set(tgt_xmp xmp_static)
+        endif()
+        set(xmp_name libxmp)
+        add_subdirectory(external/libxmp EXCLUDE_FROM_ALL)
+        if(SDL2MIXER_MOD_XMP_SHARED OR NOT SDL2MIXER_BUILD_SHARED_LIBS)
+            list(APPEND INSTALL_EXTRA_TARGETS ${tgt_xmp})
+        endif()
         if(NOT SDL2MIXER_MOD_XMP_SHARED)
-            list(APPEND PC_REQUIRES libxmplite)
+            list(APPEND PC_LIBS -l$<TARGET_FILE_BASE_NAME:${tgt_xmp}>)
         endif()
     else()
-        message(STATUS "Using system libxmp")
-        find_package(libxmp REQUIRED)
-        set(tgt_xmp libxmp::libxmp)
-        set(xmp_name libxmp)
-        if(NOT SDL2MIXER_MOD_XMP_SHARED)
-            list(APPEND PC_REQUIRES libxmp)
+        if(SDL2MIXER_MOD_XMP_LITE)
+            message(STATUS "Using system libxmp-lite")
+            find_package(libxmp-lite REQUIRED)
+            set(tgt_xmp libxmp-lite::libxmp-lite)
+            set(xmp_name libxmp-lite)
+            if(NOT SDL2MIXER_MOD_XMP_SHARED)
+                list(APPEND PC_REQUIRES libxmplite)
+            endif()
+        else()
+            message(STATUS "Using system libxmp")
+            find_package(libxmp REQUIRED)
+            set(tgt_xmp libxmp::libxmp)
+            set(xmp_name libxmp)
+            if(NOT SDL2MIXER_MOD_XMP_SHARED)
+                list(APPEND PC_REQUIRES libxmp)
+            endif()
         endif()
     endif()
     if(SDL2MIXER_MOD_XMP_SHARED)
@@ -663,10 +769,11 @@ if(SDL2MIXER_MP3_MPG123)
         message(STATUS "Using vendored mpg123")
         sdl_check_project_in_subfolder(external/mpg123/ports/cmake mpg123 SDL2MIXER_VENDORED)
         set(BUILD_LIBOUT123 FALSE CACHE BOOL "Don't configure libout123")
+        set(BUILD_PROGRAMS OFF CACHE BOOL "Build programs")
         set(BUILD_SHARED_LIBS "${SDL2MIXER_MP3_MPG123_SHARED}")
         add_subdirectory(external/mpg123/ports/cmake EXCLUDE_FROM_ALL)
-        if(NOT TARGET MPG123::mpg123)
-            add_library(MPG123::mpg123 ALIAS libmpg123)
+        if(NOT TARGET MPG123::libmpg123)
+            add_library(MPG123::libmpg123 ALIAS libmpg123)
         endif()
         if(SDL2MIXER_MP3_MPG123_SHARED OR NOT SDL2MIXER_BUILD_SHARED_LIBS)
             list(APPEND INSTALL_EXTRA_TARGETS libmpg123)
@@ -676,25 +783,25 @@ if(SDL2MIXER_MP3_MPG123)
         endif()
     else()
         message(STATUS "Using system mpg123")
-        find_package(MPG123 REQUIRED)
+        find_package(mpg123 REQUIRED)
         if(NOT SDL2MIXER_MP3_MPG123_SHARED)
             list(APPEND PC_REQUIRES libmpg123)
         endif()
     endif()
     if(SDL2MIXER_MP3_MPG123_SHARED)
         target_include_directories(SDL2_mixer PRIVATE
-            $<TARGET_PROPERTY:MPG123::mpg123,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:MPG123::mpg123,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:MPG123::mpg123,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:MPG123::libmpg123,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:MPG123::libmpg123,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:MPG123::libmpg123,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
         )
-        target_get_dynamic_library(dynamic_mpg123 MPG123::mpg123)
+        target_get_dynamic_library(dynamic_mpg123 MPG123::libmpg123)
         message(STATUS "Dynamic mpg123}: ${dynamic_mpg123}")
         target_compile_definitions(SDL2_mixer PRIVATE "MPG123_DYNAMIC=\"${dynamic_mpg123}\"")
         if(SDL2MIXER_VENDORED)
-            add_dependencies(SDL2_mixer MPG123::mpg123)
+            add_dependencies(SDL2_mixer MPG123::libmpg123)
         endif()
     else()
-        target_link_libraries(SDL2_mixer PRIVATE MPG123::mpg123)
+        target_link_libraries(SDL2_mixer PRIVATE MPG123::libmpg123)
     endif()
 endif()
 
@@ -714,18 +821,18 @@ if(SDL2MIXER_MIDI_FLUIDSYNTH)
     if(FluidSynth_FOUND)
         if(SDL2MIXER_MIDI_FLUIDSYNTH_SHARED)
             target_include_directories(SDL2_mixer PRIVATE
-                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INCLUDE_DIRECTORIES>
-                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_INCLUDE_DIRECTORIES>
-                $<TARGET_PROPERTY:FluidSynth::FluidSynth,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:FluidSynth::libfluidsynth,INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:FluidSynth::libfluidsynth,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:FluidSynth::libfluidsynth,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
             )
-            target_get_dynamic_library(dynamic_fluidsynth FluidSynth::FluidSynth)
+            target_get_dynamic_library(dynamic_fluidsynth FluidSynth::libfluidsynth)
             message(STATUS "Dynamic fluidsynth: ${dynamic_fluidsynth}")
             target_compile_definitions(SDL2_mixer PRIVATE "FLUIDSYNTH_DYNAMIC=\"${dynamic_fluidsynth}\"")
             if(SDL2MIXER_VENDORED)
-                add_dependencies(SDL2_mixer FluidSynth::FluidSynth)
-            endif()
+                add_dependencies(SDL2_mixer FluidSynth::libfluidsynth)
+             endif()
         else()
-            target_link_libraries(SDL2_mixer PRIVATE FluidSynth::FluidSynth)
+             target_link_libraries(SDL2_mixer PRIVATE FluidSynth::libfluidsynth)
         endif()
     endif()
 endif()
@@ -772,6 +879,48 @@ if(SDL2MIXER_WAVE)
     target_compile_definitions(SDL2_mixer PRIVATE MUSIC_WAV)
 endif()
 
+if(SDL2MIXER_WAVPACK)
+    target_compile_definitions(SDL2_mixer PRIVATE MUSIC_WAVPACK)
+    if(SDL2MIXER_VENDORED)
+        message(STATUS "Using vendored WevPack")
+        sdl_check_project_in_subfolder(external/wavpack WavPack SDL2MIXER_VENDORED)
+        set(WAVPACK_BUILD_PROGRAMS FALSE CACHE BOOL "Don't build WavPack programs")
+        set(WAVPACK_BUILD_COOLEDIT_PLUGIN OFF CACHE BOOL "Don't build WavPack CoolEdit plugin")
+        set(WAVPACK_BUILD_WINAMP_PLUGIN OFF CACHE BOOL "Don't build WavPack WinAMP plugin")
+        set(WAVPACK_BUILD_DOCS OFF CACHE BOOL "Don't build WavPack documentation")
+        set(BUILD_SHARED_LIBS "${SDL2MIXER_WAVPACK_SHARED}")
+        add_subdirectory(external/wavpack EXCLUDE_FROM_ALL)
+        if(SDL2MIXER_WAVPACK_SHARED OR NOT SDL2MIXER_BUILD_SHARED_LIBS)
+            list(APPEND INSTALL_EXTRA_TARGETS wavpack)
+        endif()
+        if(NOT SDL2MIXER_WAVPACK_SHARED)
+            list(APPEND PC_LIBS -l$<TARGET_FILE_BASE_NAME:WavPack::WavPack>)
+        endif()
+        target_compile_definitions(SDL2_mixer PRIVATE HAVE_WAVPACK_H)
+    else()
+        message(STATUS "Using system WavPack")
+        find_package(wavpack REQUIRED)
+        if(NOT SDL2MIXER_WAVPACK_SHARED)
+            list(APPEND PC_REQUIRES wavpack)
+        endif()
+    endif()
+    if(SDL2MIXER_WAVPACK_SHARED)
+        target_include_directories(SDL2_mixer PRIVATE
+            $<TARGET_PROPERTY:WavPack::WavPack,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:WavPack::WavPack,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:WavPack::WavPack,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+        )
+        target_get_dynamic_library(dynamic_wavpack WavPack::WavPack)
+        message(STATUS "Dynamic WavPack: ${dynamic_wavpack}")
+        target_compile_definitions(SDL2_mixer PRIVATE "WAVPACK_DYNAMIC=\"${dynamic_wavpack}\"")
+        if(SDL2MIXER_VENDORED)
+            add_dependencies(SDL2_mixer WavPack::WavPack)
+        endif()
+    else()
+        target_link_libraries(SDL2_mixer PRIVATE WavPack::WavPack)
+    endif()
+endif()
+
 if(SDL2MIXER_INSTALL)
     install(
         TARGETS SDL2_mixer
@@ -780,6 +929,10 @@ if(SDL2MIXER_INSTALL)
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT library
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT library
         PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SDL2" COMPONENT devel
+    )
+    install(FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/SDL_mixer.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SDL2" COMPONENT devel
     )
 
     if(INSTALL_EXTRA_TARGETS)
@@ -794,13 +947,14 @@ if(SDL2MIXER_INSTALL)
 
     ##### export files #####
     if(WIN32 AND NOT MINGW)
-        set(PKG_PREFIX "cmake")
+        set(SDLMIXER_INSTALL_CMAKEDIR_DEFAULT "cmake")
     else()
-        set(PKG_PREFIX "${CMAKE_INSTALL_LIBDIR}/cmake/SDL2_mixer")
+        set(SDLMIXER_INSTALL_CMAKEDIR_DEFAULT "${CMAKE_INSTALL_LIBDIR}/cmake/SDL2_mixer")
     endif()
+    set(SDLMIXER_INSTALL_CMAKEDIR "${SDLMIXER_INSTALL_CMAKEDIR_DEFAULT}" CACHE STRING "Location where to install SDL2_mixerConfig.cmake")
 
     configure_package_config_file(SDL2_mixerConfig.cmake.in SDL2_mixerConfig.cmake
-        INSTALL_DESTINATION "${PKG_PREFIX}"
+        INSTALL_DESTINATION "${SDLMIXER_INSTALL_CMAKEDIR}"
     )
     write_basic_package_version_file("${PROJECT_BINARY_DIR}/SDL2_mixerConfigVersion.cmake"
         VERSION ${FULL_VERSION}
@@ -810,63 +964,63 @@ if(SDL2MIXER_INSTALL)
         FILES
             "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixerConfig.cmake"
             "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixerConfigVersion.cmake"
-        DESTINATION "${PKG_PREFIX}"
+        DESTINATION "${SDLMIXER_INSTALL_CMAKEDIR}"
         COMPONENT devel
     )
     if(NOT SDL2MIXER_BUILD_SHARED_LIBS)
         install(
             FILES
+                cmake/PkgConfigHelper.cmake
                 cmake/FindFLAC.cmake
                 cmake/FindFluidSynth.cmake
+                cmake/Findgme.cmake
                 cmake/Findlibxmp.cmake
                 cmake/Findlibxmp-lite.cmake
                 cmake/Findmodplug.cmake
-                cmake/Findopusfile.cmake
-                cmake/FindMPG123.cmake
-                cmake/Findvorbisfile.cmake
+                cmake/Findmpg123.cmake
+                cmake/FindOpusFile.cmake
                 cmake/Findtremor.cmake
-            DESTINATION "${PKG_PREFIX}"
+                cmake/FindVorbis.cmake
+                cmake/Findwavpack.cmake
+            DESTINATION "${SDLMIXER_INSTALL_CMAKEDIR}"
             COMPONENT devel
         )
     endif()
     install(EXPORT SDL2MixerTargets
         FILE SDL2_mixer-${sdl2_mixer_install_name_infix}-targets.cmake
         NAMESPACE SDL2_mixer::
-        DESTINATION "${PKG_PREFIX}"
+        DESTINATION "${SDLMIXER_INSTALL_CMAKEDIR}"
         COMPONENT devel
     )
 
-    if(SDL2MIXER_BUILD_SHARED_LIBS)
-        # Only create a .pc file for a shared SDL2_mixer
-        set(VERSION ${FULL_VERSION})
-        set(SDL_VERSION ${SDL_REQUIRED_VERSION})
-        set(prefix "${CMAKE_INSTALL_PREFIX}")
-        set(exec_prefix "\${prefix}")
-        set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
-        set(bindir "\${exec_prefix}/bin")
-        set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
-        string(JOIN " " PC_REQUIRES ${PC_REQUIRES})
-        string(JOIN " " PC_LIBS ${PC_LIBS})
-        configure_file(SDL2_mixer.pc.in ${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc.intermediate @ONLY)
-        file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer-$<CONFIG>.pc" INPUT "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc.intermediate")
+    set(VERSION ${FULL_VERSION})
+    set(SDL_VERSION ${SDL_REQUIRED_VERSION})
+    set(prefix "${CMAKE_INSTALL_PREFIX}")
+    set(exec_prefix "\${prefix}")
+    set(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+    set(bindir "\${exec_prefix}/bin")
+    set(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+    string(JOIN " " PC_REQUIRES ${PC_REQUIRES})
+    string(JOIN " " PC_LIBS ${PC_LIBS})
+    configure_file(SDL2_mixer.pc.in ${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc.intermediate @ONLY)
+    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer-$<CONFIG>.pc" INPUT "${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc.intermediate")
 
-        set(PC_DESTDIR)
-        if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
-            # FreeBSD uses ${PREFIX}/libdata/pkgconfig
-            set(PC_DESTDIR "libdata/pkgconfig")
-        else()
-            set(PC_DESTDIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-        endif()
-        # Only install a SDL2_mixer.pc file in Release mode
-        install(CODE "
-            # FIXME: use file(COPY_FILE) if minimum CMake version >= 3.21
-            execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_if_different
-                \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer-$<CONFIG>.pc\"
-                \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc\")
-            file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PC_DESTDIR}\"
-                TYPE FILE
-                FILES \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc\")" CONFIG Release COMPONENT devel)
+    set(PC_DESTDIR)
+    if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
+        # FreeBSD uses ${PREFIX}/libdata/pkgconfig
+        set(PC_DESTDIR "libdata/pkgconfig")
+    else()
+        set(PC_DESTDIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
     endif()
+    # Always install SDL2_mixer.pc file: libraries might be different between config modes
+    install(CODE "
+        # FIXME: use file(COPY_FILE) if minimum CMake version >= 3.21
+        execute_process(COMMAND \"\${CMAKE_COMMAND}\" -E copy_if_different
+            \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer-$<CONFIG>.pc\"
+            \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc\")
+        file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${PC_DESTDIR}\"
+            TYPE FILE
+            FILES \"${CMAKE_CURRENT_BINARY_DIR}/SDL2_mixer.pc\")" COMPONENT devel)
 
     if(SDL2MIXER_BUILD_SHARED_LIBS AND (APPLE OR (UNIX AND NOT ANDROID)))
         install(
@@ -884,6 +1038,9 @@ if(SDL2MIXER_INSTALL)
 endif()
 
 if(SDL2MIXER_SAMPLES)
+    check_include_file("signal.h" HAVE_SIGNAL_H)
+    check_symbol_exists("setbuf" "stdio.h" HAVE_SETBUF)
+
     add_executable(playmus playmus.c)
     add_executable(playwave playwave.c)
 
@@ -900,10 +1057,16 @@ if(SDL2MIXER_SAMPLES)
             target_link_libraries(${prog} PRIVATE SDL2::SDL2main)
         endif()
         target_link_libraries(${prog} PRIVATE ${sdl2_target_name})
+        if(HAVE_SIGNAL_H)
+            target_compile_definitions(${prog} PRIVATE HAVE_SIGNAL_H)
+        endif()
+        if(HAVE_SETBUF)
+            target_compile_definitions(${prog} PRIVATE HAVE_SETBUF)
+        endif()
 
         if(SDL2MIXER_SAMPLES_INSTALL)
             install(TARGETS ${prog}
-                RUNTIME DESTINATION "{CMAKE_INSTALL_BINDIR}"
+                RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
             )
         endif()
     endforeach()

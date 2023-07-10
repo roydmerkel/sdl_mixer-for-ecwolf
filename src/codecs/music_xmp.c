@@ -1,6 +1,6 @@
 /*
   SDL_mixer:  An audio mixer library based on the SDL library
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -73,7 +73,7 @@ static xmp_loader libxmp;
 #else
 #define FUNCTION_LOADER(FUNC, SIG) \
     libxmp.FUNC = FUNC; \
-    if (libxmp.FUNC == NULL) { Mix_SetError("Missing xmp.framework"); return -1; }
+    if (libxmp.FUNC == NULL) { Mix_SetError("Missing xmp_lite.framework"); return -1; }
 #endif
 
 static int XMP_Load(void)
@@ -99,6 +99,9 @@ static int XMP_Load(void)
         FUNCTION_LOADER(xmp_free_context, void(*)(xmp_context))
 #if defined(XMP_DYNAMIC)
         libxmp.xmp_load_module_from_callbacks = (int (*)(xmp_context,void*,struct xmp_callbacks)) SDL_LoadFunction(libxmp.handle, "xmp_load_module_from_callbacks");
+        if (libxmp.xmp_load_module_from_callbacks == NULL) {
+            SDL_ClearError();   /* xmp_load_module_from_callbacks is optional. */
+        }
 #elif (XMP_VERCODE >= 0x040500)
         libxmp.xmp_load_module_from_callbacks = xmp_load_module_from_callbacks;
 #else
@@ -174,13 +177,13 @@ static void libxmp_set_error(int e)
 }
 
 static unsigned long xmp_fread(void *dst, unsigned long len, unsigned long nmemb, void *src) {
-    return SDL_RWread((SDL_RWops*)src, dst, len, nmemb);
+    return (unsigned long)SDL_RWread((SDL_RWops*)src, dst, len, nmemb);
 }
 static int xmp_fseek(void *src, long offset, int whence) {
     return (SDL_RWseek((SDL_RWops*)src, offset, whence) < 0)? -1 : 0;
 }
 static long xmp_ftell(void *src) {
-    return SDL_RWtell((SDL_RWops*)src);
+    return (long)SDL_RWtell((SDL_RWops*)src);
 }
 
 /* Load a libxmp stream from an SDL_RWops object */
@@ -426,6 +429,8 @@ Mix_MusicInterface Mix_MusicInterface_XMP =
     NULL,   /* LoopEnd */
     NULL,   /* LoopLength */
     XMP_GetMetaTag,
+    NULL,   /* GetNumTracks */
+    NULL,   /* StartTrack */
     NULL,   /* Pause */
     NULL,   /* Resume */
     XMP_Stop,

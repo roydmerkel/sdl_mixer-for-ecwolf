@@ -1,6 +1,6 @@
 /*
   SDL_mixer:  An audio mixer library based on the SDL library
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -932,8 +932,7 @@ static SDL_bool LoadWAVMusic(WAV_Music *wave)
         if (chunk_length == 0)
             break;
 
-        switch (chunk_type)
-        {
+        switch (chunk_type) {
         case FMT:
             found_FMT = SDL_TRUE;
             if (!ParseFMT(wave, chunk_length))
@@ -1136,7 +1135,6 @@ static SDL_bool LoadAIFFMusic(WAV_Music *wave)
         return SDL_FALSE;
     }
 
-
     wave->samplesize = channels * (samplesize / 8);
     wave->stop = wave->start + channels * numsamples * (samplesize / 8);
 
@@ -1255,6 +1253,8 @@ Mix_MusicInterface Mix_MusicInterface_WAV =
     NULL,   /* LoopEnd */
     NULL,   /* LoopLength */
     WAV_GetMetaTag,   /* GetMetaTag */
+    NULL,   /* GetNumTracks */
+    NULL,   /* StartTrack */
     NULL,   /* Pause */
     NULL,   /* Resume */
     WAV_Stop, /* Stop */

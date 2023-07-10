@@ -47,7 +47,7 @@ endforeach()
 
 set(LIBFLAC flac)
 
-set(PACKAGE_VERSION "\"1.3.4\"")
+set(PACKAGE_VERSION "\"1.4.3\"")
 set(FLAC__HAS_OGG "(0)") # Don't need OGG support here
 set(FLAC__NO_ASM 1)
 set(FLAC__HAS_X86INTRIN ${HAVE_X86INTRIN_H})
@@ -63,7 +63,7 @@ set(CPU_IS_LITTLE_ENDIAN "\n#if defined __powerpc__ || defined _M_PPC\n#undef CP
 configure_file(${LIBFLAC}/config.cmake.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/FLAC/private/config.h)
 
 if(WIN32)
-	set(FLAC_EXTRA_SOURCES ${LIBFLAC}/src/libFLAC/windows_unicode_filenames.c)
+	set(FLAC_EXTRA_SOURCES ${LIBFLAC}/src/share/win_utf8_io/win_utf8_io.c)
 else()
 	set(FLAC_EXTRA_SOURCES "")
 endif()
@@ -77,27 +77,32 @@ add_library(FLAC STATIC
 	${LIBFLAC}/src/libFLAC/cpu.c
 	${LIBFLAC}/src/libFLAC/crc.c
 	${LIBFLAC}/src/libFLAC/fixed.c
+	${LIBFLAC}/src/libFLAC/fixed_intrin_avx2.c
 	${LIBFLAC}/src/libFLAC/fixed_intrin_sse2.c
+	${LIBFLAC}/src/libFLAC/fixed_intrin_sse42.c
 	${LIBFLAC}/src/libFLAC/fixed_intrin_ssse3.c
 	${LIBFLAC}/src/libFLAC/float.c
 	${LIBFLAC}/src/libFLAC/format.c
 	${LIBFLAC}/src/libFLAC/lpc.c
-	${LIBFLAC}/src/libFLAC/lpc_intrin_sse.c
+	${LIBFLAC}/src/libFLAC/lpc_intrin_avx2.c
+	${LIBFLAC}/src/libFLAC/lpc_intrin_fma.c
+	${LIBFLAC}/src/libFLAC/lpc_intrin_neon.c
 	${LIBFLAC}/src/libFLAC/lpc_intrin_sse2.c
 	${LIBFLAC}/src/libFLAC/lpc_intrin_sse41.c
-	${LIBFLAC}/src/libFLAC/lpc_intrin_avx2.c
 	${LIBFLAC}/src/libFLAC/md5.c
 	${LIBFLAC}/src/libFLAC/memory.c
 	${LIBFLAC}/src/libFLAC/metadata_iterators.c
 	${LIBFLAC}/src/libFLAC/metadata_object.c
 	${LIBFLAC}/src/libFLAC/stream_decoder.c
 	${LIBFLAC}/src/libFLAC/stream_encoder.c
+	${LIBFLAC}/src/libFLAC/stream_encoder_framing.c
+	${LIBFLAC}/src/libFLAC/stream_encoder_intrin_avx2.c
 	${LIBFLAC}/src/libFLAC/stream_encoder_intrin_sse2.c
 	${LIBFLAC}/src/libFLAC/stream_encoder_intrin_ssse3.c
-	${LIBFLAC}/src/libFLAC/stream_encoder_intrin_avx2.c
-	${LIBFLAC}/src/libFLAC/stream_encoder_framing.c
 	${LIBFLAC}/src/libFLAC/window.c
 )
+
+add_library(FLAC::FLAC ALIAS FLAC)
 
 target_compile_definitions(FLAC PRIVATE "-DHAVE_CONFIG_H" PUBLIC "-DFLAC__NO_DLL")
 if(MSVC)

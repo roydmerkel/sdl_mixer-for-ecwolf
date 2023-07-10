@@ -9,7 +9,7 @@
 [submodule "external/opus"]
 	path = external/opus
 	url = https://bitbucket.org/ecwolf/opus.git
-	branch = v1.3.1-SDL
+	branch = v1.4-SDL
 [submodule "external/opusfile"]
 	path = external/opusfile
 	url = https://bitbucket.org/ecwolf/opusfile.git
